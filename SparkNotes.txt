@@ -141,6 +141,7 @@ rdd=( {(1, 2), (3, 4), (3, 6)})
 rdd.reduceByKey((x,y)=>x+y)  o/p : {(1, 2), (3, 10)} 
 rdd.groupByKey() o/p :  {(1, [2]), (3, [4, 6])} 
 rdd.mapValues(x => x+1) : Apply a function to each value of a pair RDD without changing the key. {(1,3), (3,5) (3,7)}
+- mapValues : means map the values , input is x i.e Key and transfrom the values corresponding to the keys by adding 1
 
 flatMapValues(func) : Apply a function that returns an iterator to each value of a pair RDD, and for each element returned, 
    produce a key/value entry with the old key. Often used for tokenization.
@@ -150,8 +151,28 @@ keys() :Return an RDD of just the keys. rdd.keys() {1, 3}
 values :Return an RDD of just the values. rdd.values() {2,4,6}
 sortByKey() : Return an RDD sorted by the key. rdd.sortByKey() {(1,2), (3,4) ,(3,6)}
 
+(rdd = {(1, 2), (3, 4), (3, 6)} other = {(3, 9)})
+cogroup : Group data from both RDDs sharing the same key. rdd.cogroup(other) 
+rdd.cogroup(other) : {(1,([2],[])), (3, ([4, 6],[9]))} 
 
+Aggregations:
+-----
+When datasets are described in terms of key/value pairs, it is common to want to aggregate statistics across all elements with the same key.
+Note: These operations return RDDs and thus are transformations rather than actions. 
 
+reduceByKey() runs several parallel reduce operations, one for each key in the dataset, 
+ where each operation combines values that have the same key. 
+e.g 
+	Per-key average with reduceByKey() and mapValues() in Python
+rdd.mapValues(lambda x: (x, 1)).reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1]))
+   # lambda x, y: in reduceByKey represents the o/p of map values i.e (0,1) (3,1) .... 
 
-
-
+key 	| value					 Key	| value					key		| value
+panda   	0					panda     (0,1)					panda     (1,2)
+pink	    3		Map Values 	pink	  (3,1)	  reduceByKey   pink  	  (7,2)
+pirate		3		=======>	pirate    (3,1)   =======>		pirate    (3,1) 
+panda 		1					panda     (1,1)
+pink		4 					pink      (4,1)
+  
+  
+  

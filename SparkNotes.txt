@@ -1,0 +1,157 @@
+--------------------------
+chapter 1 : Introduction 
+Spark does not require Hadoop; it simply has support for storage systems implementing the Hadoop APIs.
+Spark’s shells allow you to interact with data that is dis‐ tributed on disk or in memory across many machines, 
+and Spark takes care of auto‐ matically distributing this processing.
+
+Spark core 
+At a high level, every Spark application consists of a driver program that launches various parallel operations on a cluster.
+The driver program contains your application’s main function and defines distributed datasets on the cluster, then applies operations to them.
+eg the driver program was the Spark shell 
+Driver programs access Spark through a SparkContext object, which represents a connection to a computing cluster. 
+In the shell, a SparkContext is automatically created for you as the variable called sc.
+To run these operations, driver programs typically manage a number of nodes called executors.
+
+Standalone Applications
+Spark can be linked into standalone applications in either Java, Scala, or Python. The main difference from using it
+ in the shell is that you need to initialize your own SparkContext. After that, the API is the same.
+
+The process of linking to Spark varies by language. In Java and Scala, you give your application a Maven dependency on the spark-core artifact.
+In Python, you simply write applications as Python scripts, but you must run them using the bin/spark-submit script included in Spark.
+
+Initializing a SparkContext
+
+Once you have linked an application to Spark, you need to import the Spark packages in your program and create a SparkContext. 
+You do so by first creating a SparkConf object to configure your application, and then building a SparkContext for it
+from pyspark import SparkConf, SparkContext
+conf = SparkConf().setMaster("local").setAppName("My App")
+sc = SparkContext(conf = conf)
+
+These examples show the minimal way to initialize a SparkContext, where you pass two parameters:
+• A cluster URL, namely local in these examples, which tells Spark how to connect to a cluster. 
+	local is a special value that runs Spark on one thread on the local machine, without connecting to a cluster.
+• An application name, namely My App in these examples. 
+		This will identify your application on the cluster manager’s UI if you connect to a cluster.
+
+Finally, to shut down Spark, you can either call the stop() method on your Spark‐ Context,
+ or simply exit the application (e.g., with System.exit(0) or sys.exit()).
+ 
+ --------------------------
+chapter 2 : RDDs
+
+ In Spark all work is expressed as either creating new RDDs, transforming existing RDDs, or calling operations on RDDs to compute a result. 
+ Under the hood, Spark automatically distributes the data contained in RDDs across your cluster and parallalizes the operations you perform on them. 
+
+RDD Basics:
+An RDD in Spark is simply an immutable distributed collection of objects. 
+Each RDD is split into multiple partitions, which may be computed on different nodes of the cluster. 
+ 
+Users create RDDs in two ways: by loading an external dataset, or by distributing a collection of objects (e.g., a list or set)
+ in their driver program.  
+ 
+RDDs offer two types of operations: transformations and actions.
+Transformations construct a new RDD from a previous one. 
+For example, one common transformation is filtering data that matches a predicate.
+lines = sc.textFile("README.md")
+pythonLines = lines.filter(lambda line: "Python" in line)
+
+Actions, on the other hand, compute a result based on an RDD, and either return it to the driver program or 
+save it to an external storage system (e.g., HDFS). 
+Note : filter doesn't change the existing RDD rather it just applies a check on the lines RDD .
+e.g 
+>>> pythonLines.first()
+u'## Interactive Python Shell' 
+
+
+Transformations and actions are different because of the way Spark computes RDDs. Although you can define new RDDs any time, 
+Spark computes them only in a lazy fashion—that is, Transformed RDDs are computed lazily, only when you use them in an action.
+Lazy evaluation means that when we call a transformation on an RDD (for instance, calling map()), the operation is not immediately performed. 
+Instead, Spark internally records metadata to indicate that this operation has been requested
+
+Finally, Spark’s RDDs are by default recomputed each time you run an action on them. 
+If you would like to reuse an RDD in multiple actions, you can ask Spark to persist it using RDD.persist(). 
+
+After computing it the first time, Spark will store the RDD contents in memory (partitioned across the machines in your cluster), 
+and reuse them in future actions. 
+>>> pythonLines.persist
+>>> pythonLines.count()
+2
+>>> pythonLines.first()
+u'## Interactive Python Shell'
+
+Creating RDDs
+Spark provides two ways to create RDDs: loading an external dataset and parallelizing a collection in your driver program.
+
+The simplest way to create RDDs is to take an existing collection in your program and pass it to SparkContext’s parallelize() method,
+lines = sc.parallelize(["pandas", "i like pandas"])
+Loading from external storage 
+e.g lines = sc.textFile("/path/to/README.md")
+
+Note : Spark keeps track of the set of dependencies between different RDDs, called the lineage graph.
+e.g inputRDD -> apply filter (for errors) -> errorsRDD
+    inputRDD -> apply filter (for warnings) -> warningRDD 
+    union both -> errorsRDD ,warningRDD -> badLinesRDD 
+ i.e  errorsRDD = inputRDD.filter(lambda x: "error" in x) 
+ 	  warningsRDD = inputRDD.filter(lambda x: "warning" in x) 
+ 	  badLinesRDD = errorsRDD.union(warningsRDD)   
+    
+map : 1 input to 1 output 
+nums = sc.parallelize([1, 2, 3, 4])
+squared = nums.map(lambda x: x * x).collect()
+flatmap : 1 input to multiple output ,Instead of returning a single element, we return an iterator with our return values. 
+e.g 
+lines = sc.parallelize(["hello world", "hi"]) 
+words = lines.flatMap(lambda line: line.split(" ")) 
+words.first() # returns "hello"
+
+While intersection() and union() are two sim‐ ilar concepts, the performance of intersection() is much worse 
+since it requires a shuffle over the network to identify common elements.
+
+
+Actions
+-------
+ reduce(), which takes a function that operates on two elements of the type in your RDD and returns a new element of the same type.
+ sum = rdd.reduce(lambda x, y: x + y)
+ 
+ fold(), which also takes a function with the same signature as needed for reduce(), but in addition takes a “zero value” to be used for the initial call on each partition. 
+ The zero value you provide should be the identity element for your operation;
+ 
+ collect(), which returns the entire RDD’s contents. collect() is commonly used in unit tests where the entire contents of the RDD
+  are expected to fit in memory, as that makes it easy to compare the value of our RDD with our expected result. 
+ 
+take(n) returns n elements from the RDD and attempts to minimize the number of partitions it accesses, so it may represent a biased collection.  
+
+If there is an ordering defined on our data, we can also extract the top elements from an RDD using top().
+top() will use the default ordering on the data, but we can supply our own comparison function to extract the top elements.
+
+ --------------------------
+chapter 3 : Working with Key Value paris :
+
+Spark provides special operations on RDDs containing key/value pairs. These RDDs are called pair RDDs.
+
+Creating Pair RDDs:
+In Python, for the functions on keyed data to work we need to return an RDD composed of tuples 
+Example  Creating a pair RDD using the first word as the key in Python
+pairs=lines.map(lambda x:(x.split("")[0],x)) 
+When creating a pair RDD from an in-memory collection in Scala and Python, we only need to call SparkContext.parallelize() on a collection of pairs.
+
+Transformations on Pair RDDs
+Since pair RDDs contain tuples, we need to pass functions that operate on tuples rather than on indi‐ vidual elements.
+rdd=( {(1, 2), (3, 4), (3, 6)})
+rdd.reduceByKey((x,y)=>x+y)  o/p : {(1, 2), (3, 10)} 
+rdd.groupByKey() o/p :  {(1, [2]), (3, [4, 6])} 
+rdd.mapValues(x => x+1) : Apply a function to each value of a pair RDD without changing the key. {(1,3), (3,5) (3,7)}
+
+flatMapValues(func) : Apply a function that returns an iterator to each value of a pair RDD, and for each element returned, 
+   produce a key/value entry with the old key. Often used for tokenization.
+for e.g rdd.flatMapValues(x => (x to 5) :  {(1,2),(1,3),(1,4),(1,5), (3,4) (3,5)} 
+
+keys() :Return an RDD of just the keys. rdd.keys() {1, 3}
+values :Return an RDD of just the values. rdd.values() {2,4,6}
+sortByKey() : Return an RDD sorted by the key. rdd.sortByKey() {(1,2), (3,4) ,(3,6)}
+
+
+
+
+
+

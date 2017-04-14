@@ -197,6 +197,7 @@ e.g
 	Per-key average with reduceByKey() and mapValues() in Python
 rdd.mapValues(lambda x: (x, 1)).reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1]))
 # lambda x, y: in reduceByKey represents the o/p of map values i.e (0,1) (3,1) ....
+# for reduceByKey x,y represents the values corresponds to the key becoz just before using it you must have got the key value pairs
 
 key 	| value					 Key	| value					 key		| value
 panda   	0					panda     (0,1)	x				 panda     (1,2)
@@ -337,3 +338,172 @@ So, you should get back an array something like this:
 Array((A, (24, 3)), (B, (25, 3)))
   
    
+   
+Tuning the level of parallelism
+------------------------
+   
+How Spark decides how to split up the work ???
+Every RDD has a fixed number of partitions that determine the degree of parallelism to use when executing operations on the RDD.
+    
+When performing aggregations or grouping operations, we can ask Spark to use a specific number of partitions. 
+Spark will always try to infer a sensible default value based on the size of your cluster, but in some cases you will 
+want to tune the level of parallelism for better performance.   
+
+data = [("a", 3), ("b", 4), ("a", 1)]
+sc.parallelize(data).reduceByKey(lambda x, y: x + y) # Default parallelism 
+sc.parallelize(data).reduceByKey(lambda x, y: x + y, 10) # Custom parallelism ,10 - no. of partitions 
+
+repartition() : to change the partitioning of an RDD outside the context of grouping and aggregation operations 
+It shuffles the data across the network to create a new set of partitions.  
+
+coalesce() : optimized version of repartition()  
+It allows avoiding data movement, but only if you are decreasing the number of RDD partitions.
+
+To know whether you can safely call coalesce(), you can check the size of the RDD using rdd.partitions.size() in Java/Scala 
+and rdd.getNumPartitions() in Python and make sure that you are coalescing it to fewer partitions than it currently has.
+   
+   
+Grouping Data
+------------
+If our data is already keyed in the way we want, groupByKey() will group our data using the key in our RDD.
+On an RDD consisting of keys of type K and values of type V, we get back an RDD of type [K, Iterable[V]].
+   
+rdd=( {(1, 2), (3, 4), (3, 6)})
+rdd.groupByKey() o/p :  {(1, [2]), (3, [4, 6])} 
+
+groupBy() works on unpaired data or data where we want to use a different condition besides equality on the current key. 
+It takes a function that it applies to every element in the source RDD and uses the result to determine the key.
+
+rdd.reduceByKey(func) produces the same RDD as rdd.groupByKey().mapValues(value => value.reduce(func)) 
+but is more efficient as it avoids the step of creating a list of values for each key.
+
+we can group data sharing the same key from multiple RDDs using a function called cogroup(). 
+cogroup() over two RDDs sharing the same key type, K, with the respective value types V and W gives us 
+back RDD[(K, (Iterable[V], Iterable[W]))].
+
+(rdd = {(1, 2), (3, 4), (3, 6)} other = {(3, 9)})
+cogroup : Group data from both RDDs sharing the same key. rdd.cogroup(other) 
+rdd.cogroup(other) : {(1,([2],[])), (3, ([4, 6],[9]))} 
+
+aggregateByKey
+ ------
+	aggregateByKey(zeroValue)(seqOp, combOp, [numTasks]) 	
+	When called on a dataset of (K, V) pairs, returns a dataset of (K, U) pairs where the values for each key are aggregated 
+	using the given combine functions and a neutral "zero" value.
+	 Allows an aggregated value type that is different than the input value type, while avoiding unnecessary allocations. 
+	Like in groupByKey, the number of reduce tasks is configurable through an optional second argument. 
+	
+	note : https://devopsrecipe.wordpress.com/2016/10/17/pyspark-aggregatebykey/  explains better way 
+	
+	reduceByKey and aggregateByKey are much more efficient than groupByKey and should be used for aggregations as much as possible.
+	
+	# Create rdd that is a list of characters
+	sc.parallelize(list("aaaaabbbbcccdd")).map(lambda letter: (letter, {"value": letter})) \
+	.aggregateByKey( # Value to start aggregation (passed as s to `lambda s, d`) 
+					"start", 
+					# Function to join final data type (string) and rdd data type
+					lambda s, d: "[ %s %s ]" % (s, d["value"]),
+					# Function to join two final data types.
+					lambda s1, s2: "{ %s %s }" % (s1, s2), ).collect()
+	
+	Out[2]:
+	[('a', '{ { [ start a ] [ [ start a ] a ] } [ [ start a ] a ] }'),
+	 ('c', '{ [ start c ] [ [ start c ] c ] }'),
+	 ('b', '{ { [ [ start b ] b ] [ start b ] } [ start b ] }'),
+	 ('d', '[ [ start d ] d ]')]
+	 
+	i.e 
+	a. Initial State (0,0) 
+	b. for each row of data  (lambda currentState,newData : (currentState[0]+newData ,currentState[1]+1 ))
+	c. for each reducer lambda rddA,rddB : (rddA[0]+rddB[0], rddA[1]+rddB[1] ) 
+ 
+ example -2 
+ ==========
+ 
+ >> data = sc.parallelize([(“a”,1),(“b”,2),(“a”,2),(“b”,3)])
+ >> data.getNumPartitions()
+    4
+ So here our each of the tuple in “data” rdd is in a separate partition.   
+ 
+ >> data.glom().collect()   # shows data in every partition 
+[[(‘a’, 1)], [(‘b’, 2)], [(‘a’, 2)], [(‘b’, 3)]]
+ 
+ Our problem statement is to find out the sum of values for each key. But the “zeroValue” for accumulator is 1.
+ “zeroValue” means the initial value that you have set .
+ 
+ >> data.aggregateByKey(1,lambda acc,val: acc+val, lambda acc1, acc2: acc1+acc2).collect()
+[(‘a’, 5), (‘b’, 7)]
+
+So what’s happening here?
+
+This transformation has 3 parameters here:
+
+    First one is the “zeroValue” which is the initial value of the accumulator, acc i.e 1 .
+    Second parameter is a  sequencing function. Let’s term it as function-1.
+    Third parameter is a combiner function. Let’s term it as function-2.
+
+The “zeroValue” of aggregateByKey transformation is applied to accumulator on each partition.
+When tuple (“a”,1) is passed to the aggregateByKey transformation, function-1 is applied as below:
+ lambda acc,val: acc + val i.e lambda 1,1: 1 + 1 => 2 
+ So the value of accumulator for partition-1 is now 2.
+ 
+ Now when the second tuple having key “a”, which is (“a”,2) is passed to the transformation, 
+ the value 2 is not directly added to the previously calculated value of 2.
+ Since tuple (“a”,2) is in a separate partition, the accumulator is set to the initial “zeroValue” which is 1.
+ Here function-1 plays as follows:
+ lambda acc,val: acc + val i.e lambda 1,2: 1 + 2 => 3 
+ 
+ Now, these values are passed on to the second function, which is the combiner function and are finally 
+ added to give the result (2+3)=5 for key “a”.
+ 
+ VVIMP: 
+  example 3:
+  =========
+   let’s take another scenario where we have rdd with only a single partition instead of 4. 
+   >> data = sc.parallelize([(“a”,1),(“b”,2),(“a”,2),(“b”,3)],1)  # here 1 denotes the partition number so only single partition created 
+   
+   >> data.getNumPartitions()
+   1
+   >> data.glom().collect()
+   [[(‘a’, 1), (‘b’, 2), (‘a’, 2), (‘b’, 3)]]
+   
+   >> data.aggregateByKey(1,lambda acc,val: acc+val, lambda acc1, acc2: acc1+acc2).collect()
+	[(‘a’, 4), (‘b’, 6)]
+ 
+   note imp: In this case, since the partition is single, the accumulator value will not be initialized to “zeroValue” 
+   			  when the 2nd tuple of key “a” is encountered.
+   For the first tuple of key “a” i.e. (“a”,1), function-1 is applied as :
+	lambda acc,val: acc + val i.e lambda 1,1: 1 + 1 => 2
+   For the 2nd tuple of key “a” i.e.(“a”,2), function-1 is applied as:
+	lambda acc,val: acc + val i.e lambda 2,2: 2 + 2 => 4 
+
+	Since there is only one partition, there will be only one accumulator per key.
+	So acc2 = 0 for both key “a” as well as “b”.	
+	
+You can replace groupByKey with reduceByKey to improve performance in some cases. 
+reduceByKey performs map side combine which can reduce Network IO and shuffle size where as groupByKey will not perform map side combine. 
+
+combineByKey is more general then aggregateByKey. Actually, the implementation of aggregateByKey, reduceByKey and groupByKey
+is achieved by combineByKey. aggregateByKey is similar to reduceByKey but you can provide initial values when performing aggregation. 
+
+As the name suggests, aggregateByKey is suitable for compute aggregations for keys, 
+e.g  aggregations such as sum, avg, etc. The rule here is that the extra computation spent for map side combine can reduce 
+the size sent out to other nodes and driver. If your func has satisfies this rule, you probably should use aggregateByKey.  
+
+combineByKey is more general and you have the flexibility to specify whether you'd like to perform map side combine. 
+However, it is more complex to use. At minimum, you need to implement three functions: createCombiner, mergeValue, mergeCombiners. 
+
+
+Sorting Data	
+-----------
+We can sort an RDD with key/value pairs provided that there is an ordering defined on the key.  
+Once we have sorted our data, any subsequent call on the sorted data to collect() or save() will result in ordered data			  
+sortByKey() function takes a parameter called ascending indicating whether we want it in ascending order (it defaults to true).
+
+rdd.sortByKey(ascending=True, numPartitions=None, keyfunc = lambda x: str(x))  
+ 
+Joins
+-----
+
+
+  

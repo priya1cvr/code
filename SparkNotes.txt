@@ -1,4 +1,4 @@
---------------------------
+
 chapter 1 : Introduction 
 Spark does not require Hadoop; it simply has support for storage systems implementing the Hadoop APIs.
 Spark’s shells allow you to interact with data that is dis‐ tributed on disk or in memory across many machines, 
@@ -196,16 +196,144 @@ reduceByKey() runs several parallel reduce operations, one for each key in the d
 e.g 
 	Per-key average with reduceByKey() and mapValues() in Python
 rdd.mapValues(lambda x: (x, 1)).reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1]))
-   # lambda x, y: in reduceByKey represents the o/p of map values i.e (0,1) (3,1) .... 
+# lambda x, y: in reduceByKey represents the o/p of map values i.e (0,1) (3,1) ....
 
-key 	| value					 Key	| value					key		| value
-panda   	0					panda     (0,1)					panda     (1,2)
-pink	    3		Map Values 	pink	  (3,1)	  reduceByKey   pink  	  (7,2)
-pirate		3		=======>	pirate    (3,1)   =======>		pirate    (3,1) 
+key 	| value					 Key	| value					 key		| value
+panda   	0					panda     (0,1)	x				 panda     (1,2)
+pink	    3		Map Values 	pink	  (3,1)	y  reduceByKey   pink  	   (7,2)
+pirate		3		=======>	pirate    (3,1)    =======>		 pirate    (3,1) 
 panda 		1					panda     (1,1)
 pink		4 					pink      (4,1)
   
   
   
+Word count in Python
+rdd = sc.textFile("s3://...")
+words = rdd.flatMap(lambda x: x.split(" "))
+result = words.map(lambda x: (x, 1)).reduceByKey(lambda x, y: x + y)
+reduce by key works on adding values corresponding to matched keys . (this,1) (this,1) ==>reduceby key ==> (this,2)   
+ x and y corresponds to the value part . 
+ 
+ note: 
+ words.map transforms as (this,1) (life,1) (this,1).. and reduceByKey adds the value with matching key  i.e (this,2) (life,1) ...
+ instead of map you can also use mapValues 
+ 
+Spark shared Variables:
+------------------
+When functions are passed to a specific Spark operation, it is executed on a particular remote cluster node.  
+Usually, the operation is done in a way that different copy of variable(s) are used within the function. 
+These particular variables are carefully copied into the different machines, and the updates to the variables in the said 
+remote machines are not propagated back to the driver program. For this reason, one cannot support the general; 
+read-write shared variables across the tasks and expects them to be efficient. Nevertheless, Spark does provide two different 
+types (limited) of shared variables to two known usage patterns.
+
+    Broadcast variables
+    Accumulators
+ 
+ Broadcast Variables :
+ 
+	Broadcast variables allow Spark developers to keep a secured read-only variable cached on different nodes, 
+	other than merely shipping a copy of it with the needed tasks. For an instance, they can be used to give a node a 
+	copy of a large input dataset without having to waste time with network transfer I/O. 
+	Spark has the ability to distribute broadcast variables using various broadcast algorithms which will in turn largely 
+	reduce the cost of communication.
+	   Actions in Spark can be executed through different stages. 
+	   These stages are separated by distributed “shuffle” operations. Within each stage, Spark automatically broadcasts 
+	   common data needed in a cached, serialized form which will be de-serialized by each node before the running of each task. 
+	    For this reason, if you create broadcast variables explicitly, it should only be done when tasks across 
+	    multiple stages are in need of same data. 
+	
+	>>> broadcastVar = sc.broadcast([1, 2, 3])
+	pyspark.broadcast.Broadcast object at 0x102789f10>
+	
+	>> broadcastVar.value
+	[1, 2, 3]
+	
+After the broadcast variable is created, it should be used instead of the value v in any functions run on the cluster 
+so that v is not shipped to the nodes more than once. In addition, the object v should not be modified after it is broadcast 
+in order to ensure that all nodes get the same value of the broadcast variable 
+
+Accumulators:
+	Accumulators are variables that are only “added” to through an associative and commutative operation and can therefore 
+	be efficiently supported in parallel. They can be used to implement counters (as in MapReduce) or sums. 
+	Spark natively supports accumulators of numeric types, and programmers can add support for new types.
+	>>> accum = sc.accumulator(0)
+	>>> accum
+	Accumulator<id=0, value=0>
+	
+	>>> sc.parallelize([1, 2, 3, 4]).foreach(lambda x: accum.add(x))
+	...
+	10/09/29 18:41:08 INFO SparkContext: Tasks finished in 0.317106 s
+	
+	>>> accum.value
+	10
+	For accumulator updates performed inside actions only, Spark guarantees that each task’s update to the accumulator will 
+	only be applied once, i.e. restarted tasks will not update the value. 
+	In transformations, users should be aware of that each task’s update may be applied more than once if tasks or job stages are re-executed.
+	
+	Accumulators do not change the lazy evaluation model of Spark. If they are being updated within an operation on an RDD, 
+	their value is only updated once that RDD is computed as part of an action. 
+	Consequently, accumulator updates are not guaranteed to be executed when made within a lazy transformation like map(). 
+	
+	The below code fragment demonstrates this property:
+	accum = sc.accumulator(0)
+	def g(x):
+	    accum.add(x)
+	    return f(x)
+	data.map(g)
+	# Here, accum is still 0 because no actions have caused the `map` to be computed.
+
+
+ combineByKey() 
+ ---------
+ It is the most general of the per-key aggregation functions. Most of the other per-key combiners are implemented using it.
+  combineByKey method requires three functions:
+    createCombiner
+    mergeValue
+    mergeCombiner
+
+val rdd = sc.parallelize(List(
+  ("A", 3), ("A", 9), ("A", 12), ("A", 0), ("A", 5),("B", 4), 
+  ("B", 10), ("B", 11), ("B", 20), ("B", 25),("C", 32), ("C", 91),
+   ("C", 122), ("C", 3), ("C", 55)), 2)
+
+rdd.combineByKey(
+    (x:Int) => (x, 1),
+    (acc:(Int, Int), x) => (acc._1 + x, acc._2 + 1),
+    (acc1:(Int, Int), acc2:(Int, Int)) => (acc1._1 + acc2._1, acc1._2 + acc2._2))
+
+
+a. createCombiner creates the initial value (combiner) for a key's first encounter on a partition 
+if one is not found --> (firstValueEncountered, 1). So, this is merely initializing a tuple with the first value and a key counter of 1.
+
+b. Then, mergeValue is triggered only if a combiner (tuple in our case) has already been created for the found key on this 
+   partition --> (existingTuple._1 + subSequentValue, existingTuple._2 + 1). 
+   This adds the existing tuple's value (in the first slot) with the newly encountered value and takes the existing tuple's 
+   counter (in the second slot) and increments it. So, we are   
+   
+c. mergeCombiner takes the combiners (tuples) created on each partition and merges them 
+   together --> (tupleFromPartition._1 + tupleFromPartition2._1, tupleFromPartition1._2 + tupleFromPartition2._2). 
+   This is merely adding the values from each tuple together and the counters together into one tuple.   
+e,g   
+let's break up a subset of your data into partitions and see it in action:
+("A", 3), ("A", 9), ("B", 11) , ("A", 12),("B", 4), ("B", 10)
+
+Partition 1
+A=3 --> createCombiner(3) ==> accum[A] = (3, 1) --> 1st time encounter A  (x,1) represent (3,1) 
+A=9 --> mergeValue(accum[A], 9) ==> accum[A] = (3 + 9, 1 + 1) --> 2nd time encounter A , (acc:(Int, Int), x) -> ((3,1),9)
+B=11 --> createCombiner(11) ==> accum[B] = (11, 1)
+
+Partition 2
+A=12 --> createCombiner(12) ==> accum[A] = (12, 1)
+B=4 --> createCombiner(4) ==> accum[B] = (4, 1)
+B=10 --> mergeValue(accum[B], 10) ==> accum[B] = (4 + 10, 1 + 1) 
+
+Merge partitions together
+A ==> mergeCombiner((12, 2), (12, 1)) ==> (12 + 12, 2 + 1) , (acc1:(Int, Int), acc2:(Int, Int) -> (12, 2), (12, 1)
+B ==> mergeCombiner((11, 1), (14, 2)) ==> (11 + 14, 1 + 2)
+
+So, you should get back an array something like this:
+
+Array((A, (24, 3)), (B, (25, 3)))
   
-  
+   

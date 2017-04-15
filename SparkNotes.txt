@@ -501,9 +501,55 @@ Once we have sorted our data, any subsequent call on the sorted data to collect(
 sortByKey() function takes a parameter called ascending indicating whether we want it in ascending order (it defaults to true).
 
 rdd.sortByKey(ascending=True, numPartitions=None, keyfunc = lambda x: str(x))  
+>>> rdd2 =  sc.parallelize([("foo", 4), ("bar", 5), ("bar", 6)])
+>>> rdd2.sortByKey(ascending=True,numPartitions=None, keyfunc = lambda x: str(x)) .collect()
+[('bar', 5), ('bar', 6), ('foo', 4)]
  
 Joins
 -----
+>>> rdd1 =  sc.parallelize([("foo", 1), ("bar", 2), ("baz", 3)])
+>>> rdd2 =  sc.parallelize([("foo", 4), ("bar", 5), ("bar", 6)])
+>>> rdd1.getNumPartitions()
+4
+>>> rdd2.getNumPartitions()
+4
+>>> rdd1.join(rdd2).collect()
+[('foo', (1, 4)), ('bar', (2, 5)), ('bar', (2, 6))]                             
+>>> rdd1.leftOuterJoin(rdd2).collect()
+[('foo', (1, 4)), ('baz', (3, None)), ('bar', (2, 5)), ('bar', (2, 6))]
+>>> rdd1.rightOuterJoin(rdd2).collect()
+[('foo', (1, 4)), ('bar', (2, 5)), ('bar', (2, 6))]
+>>> rdd1.cartesian(rdd2).collect()
+[(('foo', 1), ('foo', 4)), (('foo', 1), ('bar', 5)), (('foo', 1), ('bar', 6)), (('bar', 2), ('foo', 4)), (('bar', 2), ('bar', 5)), (('bar', 2), ('bar', 6)), (('baz', 3), ('foo', 4)), (('baz', 3), ('bar', 5)), (('baz', 3), ('bar', 6))]
+
+
+
+Actions Available on Pair RDDs
+-----------------------
+>>> rdd2 =  sc.parallelize([("foo", 4), ("bar", 5), ("bar", 6)])
+>>> rdd2.countByKey()  # Count the number of elements for each  key.
+defaultdict(<type 'int'>, {'foo': 1, 'bar': 2})
+
+>>> rdd=sc.parallelize({(1, 2), (3, 4), (3, 6)})
+>>> rdd.collectAsMap()  # Collect the result as a map to provide easy lookup.
+{1: 2, 3: 6}
+
+>>> rdd.lookup(3) # Return all values associated with the provided key.
+[4, 6]
+
+Data Partitioning (Advanced)
+------------------------
+Spark programs can choose to control their RDDs’ partitioning to reduce communication .
+It is useful only when a dataset is reused multiple times in key-oriented operations such as joins.
+Spark’s partitioning is available on all RDDs of key/value pairs, and causes the system to group elements based on a function of each key. 
+
+
+Operations That Benefit from Partitioning
+As of Spark 1.0, the operations that benefit from partitioning are cogroup(), groupWith(), join(), leftOuterJoin(), rightOuter Join(), groupByKey(), reduceByKey(), combineByKey(), and lookup().
+
+if you call map() on a hash-partitioned RDD of key/value pairs, the function passed to map() can in theory change the key of each element, so the result will not have a partitioner. Spark does not analyze your functions to check whether they retain the key. Instead, it provides two other operations, mapValue
+
 
 
   
+   

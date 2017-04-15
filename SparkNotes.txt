@@ -550,6 +550,106 @@ As of Spark 1.0, the operations that benefit from partitioning are cogroup(), gr
 if you call map() on a hash-partitioned RDD of key/value pairs, the function passed to map() can in theory change the key of each element, so the result will not have a partitioner. Spark does not analyze your functions to check whether they retain the key. Instead, it provides two other operations, mapValue
 
 
+--------------------------
+chapter 5 : Loading and Saving Data in Spark 
+Spark can access data through the InputFormat and OutputFormat interfaces used by Hadoop MapReduce, which are available for many common file formats and storage systems(e.g., S3, HDFS, Cassan‐ dra, HBase, etc.).
 
+File Formats
+Spark makes it very simple to load and save data in a large number of file formats. Formats range from unstructured, like text, to semistructured, like JSON, to struc‐ tured, like SequenceFiles
+
+Text files - Plain old text files. Records are assumed to be one per line.
+JSON - Common text-based format, semistructured; most libraries require one record per line.
+CSV -Very common text-based format, often used with spreadsheet applications.
+SequenceFiles - A common Hadoop file format used for key/value data.
+Protocol buffers -A fast, space-efficient multilanguage format. 
+Object files - Useful for saving data from a Spark job to be consumed by shared code. Breaks if you change your classes, as it  		     relies on Java Serialization.
+
+In cases where the format ignores the key, it is common to use a dummy key (such as null).
   
-   
+  Loading Data from text file into spark:
+   ---------
+ input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/book_read.txt")
+ words=input.flatMap(lambda x:x.split()) # split words on spaces ,gives a list of words  
+ >>> words.count()
+ 511
+
+If your files are small enough, then we can use the SparkContext.wholeTextFiles() method and get back a pair RDD where the key is the name of the input file.
+
+ Saving text files
+  --------
+ saveAsTextFile(), takes a path and will output the contents of the RDD to that file
+ The path is treated as a directory and Spark will output multiple files underneath that directory.
+
+ words.saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res")
+This would create a folder(output_res) in the given path and save the words rdd in that path with part-0000,part-0001 as     files.
+ 
+ JSON
+ ----
+ Loading the data as a text file and then parsing the JSON data is an approach that we can use in all of the supported languages. This works assuming that you have one JSON record per row; if you have multiline JSON files, you will instead have to load the whole file and then parse each file. 
+ 
+  simple python 
+  vvimp:
+  json.dumps takes an object and produces a string 
+  but load would take a file-like object, read the data from that object, and use that string to create an object
+data = {'name' : 'ACME','shares' : 100,'price' : 542.23}
+>>> json_str=json.dumps(data) # here dumps take an object and produces a string 
+>>> json_str
+'{"price": 542.23, "name": "ACME", "shares": 100}'
+
+>>> filename="/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json"
+>>> with open(filename, "r") as f:
+...     data = json.loads(f.read())
+...     print data
+... 
+{u'babby': [{u'County': u'KINGS', u'First Name': u'DAVID', u'Sex': u'M', u'Count': u'272', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'268', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'MOSHE', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'ETHAN', u'Sex': u'M', u'Count': u'216', u'Year': u'2013'}]}
+>>> json_file = open("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json","r")
+>>> json_decoded = json.load(json_file) 
+# if you use json.dump(json_file) the you get error baby.json', mode 'r' at 0x107e14270> is not JSON serializable
+>>> print json_decoded
+{u'babby': [{u'County': u'KINGS', u'First Name': u'DAVID', u'Sex': u'M', u'Count': u'272', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'268', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'MOSHE', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'ETHAN', u'Sex': u'M', u'Count': u'216', u'Year': u'2013'}]}
+
+ using pyspark 
+ >>> input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json")
+>>> data = input.map(lambda x: json.dumps(x)) # using json.load gives No JSON object could be decoded error  
+>>> data.collect()
+['" "', '"{\\"babby\\": ["', '" {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"DAVID\\","', '" \\"County\\": \\"KINGS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"272\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"JAYDEN\\","', '" \\"County\\": \\"KINGS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"268\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"JAYDEN\\","', '" \\"County\\": \\"QUEENS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"219\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"MOSHE\\","', '" \\"County\\": \\"KINGS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"219\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"ETHAN\\","', '" \\"County\\": \\"QUEENS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"216\\""', '"}"', '"]}"']
+
+saving json file : 
+note the directory should not exist earlier 
+data.filter(lambda x: x[1]).map(lambda x: json.dumps(x)) .saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res")
+
+Comma-Separated Values and Tab-Separated Values
+----------------------
+>>> input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv")
+>>> input.collect()
+OR
+>>> def load_record(line):
+	""Parse a CSV line"""
+...     input=StringIO.StringIO(line)
+...     reader=csv.DictReader(input,fieldnames=["id","name","age","NumFriends"])
+...     return reader.next()
+... 
+>>>input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv").map(load_record)
+>>> 
+>>> input.collect()
+[{'NumFriends': '385', 'age': '33', 'id': '0', 'name': 'Will'}, {'NumFriends': '2', 'age': '26', 'id': '1', 'name': 'Jean-Luc'}, {'NumFriends': '221', 'age': '55', 'id': '2', 'name': 'Hugh'}, {'NumFriends': '465', 'age': '40', 'id': '3', 'name': 'Deanna'}, {'NumFriends': '21', 'age': '68', 'id': '4', 'name': 'Quark'} ]
+
+Loading CSV in full in Python
+If there are embedded newlines in fields, we will need to load each file in full and parse the entire segment
+
+def loadRecords(fileNameContents):
+	"""Load all the records in a given file"""
+	input=StringIO.StringIO(fileNameContents[1])
+	reader=csv.DictReader(input,fieldnames=["id","name","age","NumFriends"])
+	return reader 
+fullFileData=sc.wholeTextFiles("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv").flatMap(loadRecords)
+# here result is same as above 
+
+fileNameContents[0] : gives header i.e 
+[{'NumFriends': None, 'age': None, 'id': 'file:/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv', 'name': None}]
+fileNameContents[1] : gives result 
+fileNameContents[2] : gives index out of range  
+
+
+saving CSV 
+>>> fullFileData.saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res")  note : the directory shouldnt exist earlier 

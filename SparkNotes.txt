@@ -737,3 +737,40 @@ file.map(lambda x : x[1].split('\01')).map(lambda x: (x[0], x[1])).collect()
 [(u'Andaman and Nicobar Islands', u'AN'), (u'Andhra Pradesh', u'AP'), (u'Arunachal Pradesh', u'AR'), (u'Assam', u'AS'), (u'Bihar', u'BR'), (u'Chandigarh', u'CH')]
 
 Once you transformed SequenceFile RDD you can use its data in reduce and group by operations as well as map-side joins.
+save the seq file data 
+saveData=file.map(lambda x : x[1].split('\01')).map(lambda x: (x[0], x[1]))
+saveData.saveAsSequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res") 
+
+Structured Data with Spark SQL
+--------------------------
+By structured data, we mean data that has a schema—that is, a consistent set of fields across data records.
+We give Spark SQL a SQL query to run on the data source (selecting some fields or a function of the fields), and we get back an RDD of Row objects, one per record.
+
+Apache Hive
+-------
+To connect Spark SQL to an existing Hive installation, you need to provide a Hive configuration. 
+You do so by copying your hive-site.xml file to Spark’s ./conf/ direc‐ tory. 
+Once you have done this, you create a HiveContext object, which is the entry point to Spark SQL, and you can write Hive Query Language (HQL) queries against your tables to get data back as RDDs of rows.
+
+copy command to do it :
+cp /usr/local/Cellar/hive/2.1.0/libexec/conf/hive-site.xml /Users/pbishwal/spark-2.0.2-bin-hadoop2.7/conf
+
+if you don't copy then while firing the select command you will get :ObjectStore: Failed to get database in sparksql 
+also copy mysql-connector-java-5.1.41-bin.jar path to spark env.sh i.e  
+
+mysql-connector-java-5.1.41-bin.jar is present in :
+/usr/local/Cellar/hive/2.1.0/libexec/lib/mysql-connector-java-5.1.41-bin.jar
+add below in spark env.sh 
+export SPARK_CLASSPATH="/usr/local/Cellar/hive/2.1.0/libexec/lib/mysql-connector-java-5.1.41-bin.jar"
+if you don't do this you will get org.datanucleus.store.rdbms.connectionpool.DatastoreDriverNotFoundException error 
+
+from pyspark.sql import HiveContext
+hiveCtx = HiveContext(sc)
+rows = hiveCtx.sql("select name,code from iTest.states_raw")
+firstRow = rows.first()
+print firstRow.name
+Andaman and Nicobar Islands
+
+>>> rows.collect()
+17/04/16 00:24:12 WARN LazyStruct: Extra bytes detected at the end of the row! Ignoring similar problems.
+[Row(name=u'Andaman and Nicobar Islands', code=u'AN'), Row(name=u'Andhra Pradesh', code=u'AP'), Row(name=u'Arunachal Pradesh', code=u'AR'), Row(name=u'Assam', code=u'AS') ]

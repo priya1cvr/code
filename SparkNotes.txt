@@ -806,3 +806,74 @@ print departmentsJson.show()
 
 # departmentsJson = sqlContext.jsonFile("hdfs://localhost:54310/user/hive/warehouse/sample/departments.json")
 # gives AttributeError: 'SQLContext' object has no attribute 'jsonFile'  hence sqlContext.read.json used 
+
+Databases
+--------
+def createConnection() = { 
+	Class.forName("com.mysql.jdbc.Driver").newInstance(); 
+	DriverManager.getConnection("jdbc:mysql://localhost/metastore?user=iTest");
+}
+def extractValues(r: ResultSet) = { 
+	(r.getInt(1), r.getString(2))
+}
+
+val data = new JdbcRDD(sc,createConnection, "SELECT * FROM iTest.states_raw WHERE code='AP' , lowerBound = 1, upperBound = 3, numPartitions = 2, mapRow = extractValues)
+println(data.collect().toList)
+
+
+
+chapter 6 :Advanced Spark Programming:
+----------------------
+Shared Variables : Accumulators and BroadCast Variable 
+
+Accumulators:
+--------
+
+When we normally pass functions to Spark, such as a map() function or a condition for filter(), they can use variables defined 
+outside them in the driver program, but each task running on the cluster gets a new copy of each variable, 
+and updates from these copies are not propagated back to the driver.
+
+accumulators, provides a simple syntax for aggregating values from worker nodes back to the driver program. 
+
+Assume states.txt has few blank lines present in path:
+'/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/states.txt' 
+
+file=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/states.txt")
+# create an accumulator initialised to 0 .
+blankLines= sc.accumulator(0)
+
+def extraCallSigns(line):
+	global blankLines
+	if (line == ""):
+		blankLines+=1
+	return line.split()	
+
+callSigns=file.flatMap(extraCallSigns)	
+callSigns.saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res" + "/callsigns")
+print "Blank lines: %d" % blankLines.value # accumulator is called using its value property 
+
+# note : if you file doesn't have blank lines then you may get error NoneType Object is not iterable 
+# Note that we will see the right count only after we run the saveAsTextFile() action, because the transformation above it, map(), is lazy, so the side-effect incrementing of the accumulator will happen only when the lazy map() transformation is forced to occur by the saveAsTextFile() action.
+
+
+To summarize, accumulators work as follows:
+• We create them in the driver by calling the SparkContext.accumulator(initial Value) method, which produces an accumulator 
+	holding an initial value. The return type is an org.apache.spark.Accumulator[T] object, where T is the type of initialValue.
+• Worker code in Spark closures can add to the accumulator with its += method (or add in Java).
+• The driver program can call the value property on the accumulator to access its value (or call value() and setValue() in Java).
+
+
+Note that tasks on worker nodes cannot access the accumulator’s value()—from the point of view of these tasks, accumulators are write-only variables.
+
+Accumulators and Fault Tolerance
+Spark automatically deals with failed or slow machines by re-executing failed or slow tasks.
+
+Broadcast Variables
+-------------
+It allows the program to efficiently send a large, read-only value to all the worker nodes for use in one or more Spark operations.
+
+The process of using broadcast variables is simple:
+1. CreateaBroadcast[T]bycallingSparkContext.broadcastonanobjectoftype T. Any type works as long as it is also Serializable.
+2. Access its value with the value property (or value() method in Java).
+3. The variable will be sent to each node only once, and should be treated as read- only (updates will not be propagated to other nodes).
+

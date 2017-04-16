@@ -774,3 +774,35 @@ Andaman and Nicobar Islands
 >>> rows.collect()
 17/04/16 00:24:12 WARN LazyStruct: Extra bytes detected at the end of the row! Ignoring similar problems.
 [Row(name=u'Andaman and Nicobar Islands', code=u'AN'), Row(name=u'Andhra Pradesh', code=u'AP'), Row(name=u'Arunachal Pradesh', code=u'AR'), Row(name=u'Assam', code=u'AS') ]
+
+JSON
+----
+sc.setLogLevel("ERROR") # this is to supress the warnings in pyspark shell 
+
+from pyspark.sql import HiveContext
+hiveCtx = HiveContext(sc)
+baby=hiveCtx.read.json("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json")
+baby.registerTempTable("baby")
+results = hiveCtx.sql("SELECT * FROM baby")
+print results.show()
+note : to see the records in proper format the json should be in single line as e.g 
+{"Year": "2013","First Name": "DAVID","County": "KINGS","Sex": "M","Count": "272"},
+
+sc.setLogLevel("ERROR") # this is to supress the warnings in pyspark shell 
+
+#copying to HDFS (using linux command line)
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/departments.json /user/hive/warehouse/sample
+from pyspark.sql import HiveContext
+from pyspark import SQLContext
+sqlContext = SQLContext(sc)
+departmentsJson = sqlContext.read.json("hdfs://localhost:54310/user/hive/warehouse/sample/departments.json")
+departmentsJson.registerTempTable("departmentsTable")
+departmentsData = sqlContext.sql("select * from departmentsTable")
+for rec in departmentsData.collect():
+	print(rec)
+
+OR 
+print departmentsJson.show()
+
+# departmentsJson = sqlContext.jsonFile("hdfs://localhost:54310/user/hive/warehouse/sample/departments.json")
+# gives AttributeError: 'SQLContext' object has no attribute 'jsonFile'  hence sqlContext.read.json used 

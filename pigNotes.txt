@@ -3,6 +3,7 @@ Chapter 1 : Introduction
 
 What is Pig ? 
 Pig provides an engine for executing data flows in parallel on Hadoop.
+Pig is a data flow language.
 It includes a language, Pig Latin, for expressing these data flows.
 
 Pig runs on Hadoop. 
@@ -40,4 +41,77 @@ Id, product_name
 Field: A field is a piece of data. In the above data set product_name is a field. 
 Tuple: A tuple is a set of fields. Here Id and product_name form a tuple. Tuples are represented by braces. Example: (10, iphone). 
 Bag: A bag is collection of tuples. Bag is represented by flower braces. Example: {(10,iphone),(20, samsung),(30,Nokia)}. 
-Relation: Relation represents the complete database. A relation is a bag. To be precise relation is an outer bag. We can call a relation as a bag of tuples.
+Relation: Relation represents the complete database. A relation is a bag. 
+To be precise relation is an outer bag. We can call a relation as a bag of tuples.
+
+To compare with RDBMS, a relation is a table, where as the tuples in the bag corresponds to the rows in the table. 
+Note that tuples in pig doesn't require to contain same number of fields and fields in the same position have the same data type. 
+
+How Pig came to Light ? 
+1. Initially map reduce was the only way to code in hadoop in order to process Bigdata. 
+ Then it was found there are many people around who are not proficient with java and were hence deprived of making use of Hadoop 
+ to process Bigdata as they were unable to write map-reduce code, so for them scripting language like Pig was invented.
+
+2. Pig in turn at the back converts the scripts to Map-reduce code to process the data.
+3. It makes the life of developers easy as a two line code of Pig may be drill down to a page long code of pure java map reduce code.
+
+How Pig differs from MapReduce ?
+Pig provides users with several advantages over using MapReduce directly.
+1. Pig Latin provides all of the standard data-processing operations, such as join, filter, group by, order by, union, etc.  
+   but MapReduce provides the group by operation directly and order by operation indirectly through the way it implements 
+   the grouping. Join, are not provided and must instead be written by the user.Filter and projection can be implemented 
+    trivially in the map phase.
+2. Pig provides some complex implementations of these standard data operations. 
+   For e.g sometimes the data sent to the reducers is often skewed .Pig has join and order by operators that will handle 
+   this case and (in some cases) rebalance the reducers. 
+   but rewriting these in MapReduce would be time consuming. 
+3. MapReduce has no opportunity to optimize or check the user’s code. 
+   Pig, on the other hand, can analyze a Pig Latin script and understand the data flow that the user is describing.
+   i.e it can do early error checking  and optimisations 
+   
+All of these points mean that Pig Latin is much lower cost to write and maintain than Java code for MapReduce.      
+
+
+e.g  Finding the top 3 emp salary and name 
+users = Load '/home/devo/c4493001/sales_aggr/emp_salary.txt' as (name : chararray ,salary:int) 
+grpd = foreach users generate name,salary as e_salary ;
+srtd = order grpd by e_salary desc ;
+final = limit srtd 3 ; 
+DUMP Final ; 
+store final into '/home/devo/c4493001/sales_aggr/emp_salary' ; 
+you can see emp_salary directory is created and 
+bash-3.2$ cat part-r-00000
+Sunil	901
+Ram	837
+Rohit	832
+
+What Is Pig Useful For?
+Pig Latin use cases tend to fall into three separate categories: 
+a. traditional extract transform load (ETL) data pipelines 
+b. research on raw data
+c. iterative processing.
+
+
+Chapter 2 : Running pig 
+ -----------------
+ You can run Pig locally on your machine or on your grid. You can also run Pig as part of Amazon’s Elastic MapReduce service.
+ 
+ Running Pig locally on your machine is referred to as local mode. 
+ Local mode is useful for prototyping and debugging your Pig Latin scripts.
+ 
+ Starting with version 0.7, it uses the Hadoop class LocalJobRunner that reads from the local filesystem and 
+ executes MapReduce jobs locally. 
+ 
+ e.g Find average Salary of all employees 
+ users = Load '/home/devo/c4493001/sales_aggr/emp_salary.txt' as (name : chararray ,salary:int) 
+ grpd = GROUP users all;
+ # it puts all the records in one bag as we want to sum all the emp salary 
+ t_salary = foreach grpd generate SUM(users.salary) as total_salary ;
+ t_count = foreach grpd generate COUNT(users.salary) as total_count ;
+ t_avg =  foreach grpd generate  (double) (t_salary.total_salary/t_count.total_count)  ; 
+
+ OR 
+ t_avg =  foreach grpd generate AVG(users.salary) ; 
+ o/p :
+ (469.42857142857144)	
+ 

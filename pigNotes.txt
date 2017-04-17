@@ -1,0 +1,43 @@
+Chapter 1 : Introduction
+----------------------
+
+What is Pig ? 
+Pig provides an engine for executing data flows in parallel on Hadoop.
+It includes a language, Pig Latin, for expressing these data flows.
+
+Pig runs on Hadoop. 
+It makes use of both the Hadoop Distributed File System, HDFS, and Hadoop’s processing system, MapReduce.
+
+Word Count in pig :
+lines = load '/home/devo/c4493001/sales_aggr/processes.txt' as (line);
+words = foreach lines GENERATE FLATTEN(TOKENIZE (line)) as word ;
+grouped = GROUP words by word ;
+wordcount = foreach grouped generate group,COUNT(words) ; 
+DUMP wordcount ; 
+
+line : 1017 table_name Mon Apr  3 07:07:24 GMT 2017 
+TOKENIZE operator : first splits each line into words . It creates a bag of words 
+e.g ({(1017),(table_name),(Mon),(Apr),(3),(07:07:24),(GMT),(2017)})
+
+FLATTEN function : the bag is converted into a tuple
+e.g (1017)
+(table_name)
+(Mon)
+(Apr) and so on .... 
+
+then the  words are grouped together so that the count can be computed 
+e.g DUMP grouped gives : (Apr,{(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr)}) 
+final result : (Apr,15) 
+
+
+Id, product_name
+-----------------------
+10, iphone
+20, samsung
+30, Nokia
+
+
+Field: A field is a piece of data. In the above data set product_name is a field. 
+Tuple: A tuple is a set of fields. Here Id and product_name form a tuple. Tuples are represented by braces. Example: (10, iphone). 
+Bag: A bag is collection of tuples. Bag is represented by flower braces. Example: {(10,iphone),(20, samsung),(30,Nokia)}. 
+Relation: Relation represents the complete database. A relation is a bag. To be precise relation is an outer bag. We can call a relation as a bag of tuples.

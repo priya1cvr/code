@@ -10,7 +10,8 @@ Pig runs on Hadoop.
 It makes use of both the Hadoop Distributed File System, HDFS, and Hadoop’s processing system, MapReduce.
 
 Word Count in pig :
-lines = load '/home/devo/c4493001/sales_aggr/processes.txt' as (line);
+lines = load '/home/devo/c4493001/pratice/processes.txt' as (line);
+lines is the relation 
 words = foreach lines GENERATE FLATTEN(TOKENIZE (line)) as word ;
 grouped = GROUP words by word ;
 wordcount = foreach grouped generate group,COUNT(words) ; 
@@ -31,21 +32,6 @@ e.g DUMP grouped gives : (Apr,{(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(Apr),(
 final result : (Apr,15) 
 
 
-Id, product_name
------------------------
-10, iphone
-20, samsung
-30, Nokia
-
-
-Field: A field is a piece of data. In the above data set product_name is a field. 
-Tuple: A tuple is a set of fields. Here Id and product_name form a tuple. Tuples are represented by braces. Example: (10, iphone). 
-Bag: A bag is collection of tuples. Bag is represented by flower braces. Example: {(10,iphone),(20, samsung),(30,Nokia)}. 
-Relation: Relation represents the complete database. A relation is a bag. 
-To be precise relation is an outer bag. We can call a relation as a bag of tuples.
-
-To compare with RDBMS, a relation is a table, where as the tuples in the bag corresponds to the rows in the table. 
-Note that tuples in pig doesn't require to contain same number of fields and fields in the same position have the same data type. 
 
 How Pig came to Light ? 
 1. Initially map reduce was the only way to code in hadoop in order to process Bigdata. 
@@ -73,12 +59,12 @@ All of these points mean that Pig Latin is much lower cost to write and maintain
 
 
 e.g  Finding the top 3 emp salary and name 
-users = Load '/home/devo/c4493001/sales_aggr/emp_salary.txt' as (name : chararray ,salary:int) 
+users = Load '/home/devo/c4493001/pratice/emp_salary.txt' as (name : chararray ,salary:int) ;
 grpd = foreach users generate name,salary as e_salary ;
 srtd = order grpd by e_salary desc ;
 final = limit srtd 3 ; 
 DUMP Final ; 
-store final into '/home/devo/c4493001/sales_aggr/emp_salary' ; 
+store final into '/home/devo/c4493001/pratice/emp_salary' ; 
 you can see emp_salary directory is created and 
 bash-3.2$ cat part-r-00000
 Sunil	901
@@ -103,15 +89,154 @@ Chapter 2 : Running pig
  executes MapReduce jobs locally. 
  
  e.g Find average Salary of all employees 
- users = Load '/home/devo/c4493001/sales_aggr/emp_salary.txt' as (name : chararray ,salary:int) 
+ users = Load '/home/devo/c4493001/pratice/emp_salary.txt' as (name : chararray ,salary:int) 
  grpd = GROUP users all;
  # it puts all the records in one bag as we want to sum all the emp salary 
  t_salary = foreach grpd generate SUM(users.salary) as total_salary ;
  t_count = foreach grpd generate COUNT(users.salary) as total_count ;
  t_avg =  foreach grpd generate  (double) (t_salary.total_salary/t_count.total_count)  ; 
-
+ store t_avg into '/home/devo/c4493001/sales_aggr/emp_salary' ; 
+ 
+ 
  OR 
  t_avg =  foreach grpd generate AVG(users.salary) ; 
  o/p :
- (469.42857142857144)	
+ (469.42857142857144)
+
+Command-Line and Configuration Options
+-e or -execute
+Execute a single command in Pig. For example, pig -e fs -ls will list your home directory.
+-h or -help
+List the available command-line options.
  
+ -h properties
+List the properties that Pig will use if they are set by the user.
+-P or -propertyFile
+Specify a property file that Pig should read.
+-version
+Print the version of Pig.
+
+while running in cluster you can use pig -f my_script.pig but for local execution you should use pig -x local my_script.pig 
+
+pig -x local / pig -x mapreduce :  -x stands for execute, but if we use the -f we can pass in a file and run the Pig Script
+	
+Pig basically has two execution modes
+
+1] Local Mode
+
+2] Map-Reduce Mode
+
+Local Mode - When you run Pig in local mode, you need access to a single machine; all files are installed and run using your local host and local file system.
+
+Here *all files* means all the files which you are going to process and all the jars or anything which you are referring/using in pig Script.
+
+Mapreduce Mode - When you run Pig in mapreduce mode, you are dealing with Hadoop cluster and HDFS(Hadoop Distributed File System).
+
+In this case *all files* are expected to be in the HDFS. 
+
+Chapter 4 : Pig's Data Model:
+--------------------------
+Types
+Pig’s data types can be divided into two categories: 
+scalar types, which contain a single value, and 
+complex types, which contain other types.
+
+ scalar types:
+ ------
+ int : four-byte signed intege
+ long :  eight-byte signed integer e.g 5000000000L
+ float : use four bytes   in some calculations it will lose precision ,use an int or long instead
+ 		 e.g 6.022e23f 3.14f 
+ double : A double-precision floating-point number. use eight bytes to store their value ,2.71828 exponent format, 6.626e-34.
+ chararray : A string or character array.e.g 'fred' 
+ 			 Unicode characters can be expressed as \u followed by their four-digit hexadecimal Unicode value.e.g Ctrl-A is expressed as \u0001.
+ 
+ Complex Types
+ --------
+ 
+Pig has three complex data types: maps, tuples, and bags. 
+
+Map : 
+A map in Pig is a chararray to data element mapping, where that element can be any Pig type, 
+including a complex type. The chararray is called a key and is used as an index to find the element, referred to as the value.			 	 
+
+Tuple :
+A tuple is a fixed-length, ordered collection of Pig data elements. 
+Tuples are divided into fields, with each field containing one data element. 
+A tuple is analogous to a row in SQL, with the fields being SQL columns.
+
+Bag:
+A bag is an unordered collection of tuples. Because it has no order, it is not possible to reference tuples in a bag by position.
+It is not required to, have a schema associated with bag .
+In the case of a bag, the schema describes all tuples within the bag. 
+
+Id, product_name
+-----------------------
+10, iphone
+20, samsung
+30, Nokia
+
+
+Field: A field is a piece of data. In the above data set product_name is a field. 
+Tuple: A tuple is a set of fields. Here Id and product_name form a tuple. Tuples are represented by braces. Example: (10, iphone). 
+Bag: A bag is collection of tuples. Bag is represented by flower braces. Example: {(10,iphone),(20, samsung),(30,Nokia)}. 
+Relation: Relation represents the complete database. A relation is a bag. 
+To be precise relation is an outer bag. We can call a relation as a bag of tuples.
+
+To compare with RDBMS, a relation is a table, where as the tuples in the bag corresponds to the rows in the table. 
+Note that tuples in pig doesn't require to contain same number of fields and fields in the same position have the same data type. 
+
+Few More exercise : 
+
+movies = load '/home/devo/c4493001/pratice/movies_data.csv' USING PigStorage(',') as (id,name,year,rating,duration) ; 
+# note be careful about the case senistivity PIGSTORAGE and PigStorage are different ,so it wont work . 
+
+sample_data = SAMPLE movies 0.01 ;
+# to see the sample records 
+
+1. List the movies that having a rating greater than 4
+grpd = foreach movies generate name,rating ;
+rating_greater4 = FILTER grpd BY (float)rating > 4.0 ;
+DUMP rating_greater4 ;
+
+2. List the movies that were released between 1950 and 1960
+   movies_5060 = FILTER movies BY year>1950 and year<1960  
+ 
+3. List the movies that start with the Alpahbet A
+   moviesWithA = FILTER movies BY name matches 'A.*' ; 
+   
+To view the step-by-step execution of a sequence of statements you can use the ILLUSTRATE command:
+ILLUSTRATE movies_5060 ;    
+
+4. List all the movies in the ascending order of year. 
+    asc_movies_year = ORDER movies by year DESC ;
+    
+5.  list the distinct records present movies_with_dups:
+	no_dups = DISTINCT movies_with_dups;   
+
+How Strongly Typed Is Pig?
+In a strongly typed computer language (e.g., Java), the user must declare up front the type for all variables. 
+In weakly typed languages (e.g., Perl), variables can take on values of different type and adapt as the occasion demands.
+So which is Pig? For the most part it is strongly typed. 
+If you describe the schema of your data, Pig expects your data to be what you said. 
+But when Pig does not know the schema, it will adapt to the actual types at runtime.  
+
+e.g 
+player = load 'baseball' as (name:chararray, team:chararray,
+pos:bag{t:(p:chararray)}, bat:map[]);
+unintended = foreach player generate bat#'base_on_balls' - bat#'ibbs';
+If Pig were weakly typed, the output of unintended would be records with one field typed as an integer. As it is, Pig will output records with one field typed as a double. 
+Pig will make a guess and then do its best to massage the data into the types it guessed.	
+
+chapter 5: Intro to Pig Latin :
+-------------------------
+Positional references are preceded by a $ (dollar sign) and start from 0:
+
+prices = load '/home/devo/c4493001/pratice/NYSE_daily.txt' as  (exchange, symbol, date, open, high, low, close, volume, adj_close);
+gain = foreach prices generate close-open ;
+gain2 = foreach prices generate $6-$3 ;
+beginning = foreach prices generate ..open; -- produces exchange, symbol, date, open
+middle = foreach prices generate open..close; -- produces open, high, low, close
+end = foreach prices generate volume..; -- produces volume, adj_close
+	 
+	   

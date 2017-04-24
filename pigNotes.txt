@@ -239,4 +239,88 @@ beginning = foreach prices generate ..open; -- produces exchange, symbol, date, 
 middle = foreach prices generate open..close; -- produces open, high, low, close
 end = foreach prices generate volume..; -- produces volume, adj_close
 	 
-	   
+Join.pig 
+daily = load '/home/devo/c4493001/pratice/NYSE_daily.txt' as  (exchange, symbol, date, open, high, low, close, volume, adj_close) ;
+divs = load '/home/devo/c4493001/pratice/NYSE_dividends.txt' as (exchange, symbol, date, dividends) ;
+
+jnd = join daily by (symbol,date) ,divs by (symbol,date) ;
+jnd_left = join daily by (symbol,date) left outer,divs by (symbol,date) ;
+
+Self joins are supported, though the data must be loaded twice:
+divs1 = load 'NYSE_dividends' as (exchange:chararray, symbol:chararray, date:chararray, dividends);
+divs2 = load 'NYSE_dividends' as (exchange:chararray, symbol:chararray, date:chararray, dividends);
+	
+jnd = join divs1 by symbol, divs2 by symbol ;
+increased = filter jnd by divs1::date < divs2::date and divs1::dividends < divs2::dividends ;	
+
+Problem 2: 
+CSV are present in : /home/devo/c4493001/pratice 
+the problem is taken from link : https://megatome.com/simple-data-analysis-with-pig-ee4390c93085 
+
+Type head BX-Books.csv to see the first few lines of the raw data. You’ll notice that’s it’s not really comma-delimited; the delimiter is ‘;‘. 
+There are also some escaped HTML entities we can clean up, and the quotes around all of the values can be removed.
+
+The first line in the file looks like this:
+"ISBN";"Book-Title";"Book-Author";"Year-Of-Publication";"Publisher";"Image-URL-S";"Image-URL-M";"Image-URL-L"
+This lines defines the data format of the fields in the file. 
+
+sed 's/\&amp;/\&/g' BX-Books.csv | sed -e '1d' |sed 's/;/$$$/g' | sed 's/"$$$"/";"/g' | sed 's/"//g' > BX-BooksCorrected.txt 
+
+Above Command will:
+    Replace all &amp; instances with &
+    Remove the first (header) line
+    Change all semicolons to $$$
+    Change all "$$$" instances into ";"
+    Remove all " characters
+Steps 3 and 4 may look strange, but some of the field content may contain semicolons. In this case, they will be converted to $$$, but they will not match the "$$$" pattern, 
+and will not be converted back into semicolons and mess up the import process.
+
+Load the data into a Pig collection:
+books = LOAD '/home/devo/c4493001/pratice/BX-BooksCorrected.txt' USING PigStorage(';') AS (ISBN:chararray,BookTitle:chararray,BookAuthor:chararray,YearofPubliccation:int,Publisher:chararray) ;
+grunt> describe books ;
+books: {ISBN: chararray,BookTitle: chararray,BookAuthor: chararray,YearofPubliccation: int,Publisher: chararray}
+
+Group the collection by year of publication:
+grpd = group books BY YearofPubliccation ;  	
+
+Generate book count by year:
+countByYear = foreach grpd generate group as YearofPubliccation,COUNT($1) AS BookCount ;
+
+cleanup: 
+books_refine = FILTER books BY YearofPubliccation > 0;
+grpd = group books_refine BY YearofPubliccation ;  	
+countByYear = foreach grpd generate group as YearofPubliccation,COUNT($1) AS BookCount ;
+
+--to check the above count for a year 
+lis = FILTER books_refine BY YearofPubliccation == 1949 ; 
+dump lis ;
+
+create a set of all authors, and all years they wrote books:
+pivot = foreach (GROUP books_refine BY BookAuthor) generate group as  BookAuthor, FLATTEN(books_refine.YearofPubliccation) as Year ; 
+this will create a structure like (ram singh ,1928) (ram singh ,1983) 
+Create author book count by year:
+grpByAuthYear = GROUP pivot BY (BookAuthor, Year);  
+
+with_count = FOREACH grpByAuthYear GENERATE FLATTEN(group), COUNT(pivot) as count; 
+
+author_result = FOREACH (GROUP with_count BY BookAuthor) { order_by_count = ORDER with_count BY count DESC; 
+GENERATE group AS Author, order_by_count.(Year, count) AS Books;  }; 
+
+pub_auth = FOREACH books GENERATE Publisher, BookAuthor; 
+distinct_authors = FOREACH (GROUP pub_auth BY Publisher) { da = DISTINCT pub_auth.BookAuthor; 
+GENERATE group AS Publisher, da AS Author; }; 
+
+distinct_flat = FOREACH distinct_authors GENERATE Publisher, FLATTEN(Author) AS Author ;
+
+joined = JOIN distinct_flat BY Author, author_result BY Author; 
+
+filtered = FOREACH joined GENERATE distinct_flat::Publisher AS Publisher, distinct_flat::Author AS Author, author_result::Books AS Books ;
+
+Generate Final Results: 
+result = FOREACH (GROUP filtered BY Publisher) { order_by_pub = ORDER filtered BY Publisher ASC; 
+ GENERATE group AS Publisher, order_by_pub.(Author, Books); };
+
+create set of all authors who wrote a book in a particular year 
+grpByYearAuth =  foreach grpd generate $0,books_refine.BookAuthor ;
+  
+  

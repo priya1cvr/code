@@ -1,0 +1,65 @@
+Use a list if you want to preserve the insertion order of the items. Use a set if you want to eliminate
+duplicates (and don’t care about the order).
+from collections import dict 
+d=defaultdict(set)
+d['a'].add(1)
+d['a'].add(2)
+d['a'].add(1)
+>>> d
+defaultdict(<type 'set'>, {'a': set([1, 2])})
+
+>>> d=defaultdict(list)
+>>> d['a'].append(1)
+>>> d['a'].append(2)
+>>> d['b'].append(4)
+>>> d
+defaultdict(<type 'list'>, {'a': [1, 2, 1]})
+=================================================
+To control the order of items in a dictionary, you can use an OrderedDict from the
+collections module. It exactly preserves the original insertion order of data when
+iterating.
+
+===================================================
+namedtuple instances are just as memory efficient as regular tuples because they do not 
+have per-instance dictionaries. Each kind of namedtuple is represented by its own class, 
+created by using the namedtuple() factory function. 
+The arguments are the name of the new class and a string containing the names of the elements.
+
+-tuples access elements by index 
+
+from collections import namedtuple
+Animal = namedtuple('Animal', 'name age type')
+perry = Animal(name="perry", age=31, type="cat")
+print(perry)
+# Output: Animal(name='perry', age=31, type='cat')
+print(perry.name)
+# Output: 'perry'
+
+##########Iteration e.g ###########
+with open('iterator.txt') as f:
+	try:
+		while True:
+			line=next(f)
+			print (line)
+	except StopIteration:
+		pass 
+
+Unpacking in python 2.7 
+>>> (name, email), phones = record[:2], record[2:]
+>>> name
+'Dave'
+>>> email
+'dave@example.com'
+>>> phones
+('773-555-1212', '847-555-1212')
+>>> 
+
+Unpacking in python 3.x
+>>> record = ('Dave', 'dave@example.com', '773-555-1212', '847-555-1212') >>> name, email, *phone_numbers = user_record>>> name'Dave'>>> email'dave@example.com'>>> phone_numbers 
+['773-555-1212', '847-555-1212'] 
+>>>
+
+
+
+
+ 

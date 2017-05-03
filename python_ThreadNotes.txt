@@ -1,0 +1,168 @@
+Thread Notes:
+
+Define a Thread: 
+class threading.Thread(group=None,
+                       target=None,
+                       name=None,
+                       args=(),
+                       kwargs={}) 
+                       
+group: This is the value of group that should be None; this is reserved for future implementations
+target: This is the function that is to be executed when you start a thread activity
+name: This is the name of the thread; by default, a unique name of the form Thread-N is assigned to it
+args: This is the tuple of arguments that are to be passed to a target
+kwargs: This is the dictionary of keyword arguments that are to be used for the target function
+
+                       
+Using arguments to identify or name the thread is cumbersome and unnecessary. Each Thread instance has a name with a default value that can be changed as the thread is created. 
+Naming threads is useful in server processes with multiple service threads that handle different operations.
+
+# Code to execute in an independent thread	
+import time 
+def countdown(n):
+	while n>0:
+		print ('T-minus',n)
+		n-=1
+		time.sleep(5)
+		
+# Create and launch a thread
+from threading import Thread 
+t=Thread(target=countdown,args=(10,))
+t.start()			
+
+Python offers two modules to implement threads in programs.
+    <thread> module and
+    <threading> module.
+    
+ The key difference between the two modules is that the module <thread> implements a thread as a function. 
+ On the other hand, the module <threading> offers an object-oriented approach to enable thread creation.  
+ 
+Basic Python multithreading example.
+-----------------------------------------------
+from thread import start_new_thread 
+threadID=1
+
+def factorial(n):
+	global threadID
+	if n<1:
+		print "%s :%d" % ("Thread",threadID)
+		threadID+=1
+		return 1
+	else:
+		returnNumber = n*factorial(n-1)
+		print( str(n)+ '!=' + str(returnNumber))
+		return returnNumber
+		
+start_new_thread(factorial,(5, ))
+start_new_thread(factorial,(4, ))
+
+c = raw_input("Waiting for threads to return...\n")		
+	
+	
+Create a thread class and object to print current date.
+-----------------------------------------------
+import threading 
+import datetime
+
+class myThread(threading.Thread):
+	def __init__(self,name,counter):
+		threading.Thread.__init__(self)
+		self.threadID=counter
+		self.name=name
+		self.counter=counter
+		
+	def run(self):
+		print 'starting ' + self.name
+		print_date(self.name, self.counter)
+		print 'Exiting ' + self.name
+
+def print_date(threadName,counter):
+	datefields =[]
+	today = datetime.date.today()
+	datefields.append(today)
+	print "%s[%d]:%s" %(threadName,counter,datefields[0])
+	
+thread1=myThread("Thread",1)
+thread2=myThread("Thread",2)
+
+thread1.start()
+thread2.start()
+
+thread1.join()
+thread2.join()
+print "Exiting the program!!"					
+ 
+
+run(): 	It is the entry point function for any thread.
+start(): 	The start() method triggers a thread when run method is called.
+join([time]): 	The join() method enables a program to wait for threads to terminate.
+isAlive(): 	The isAlive() method verifies an active thread.
+getName(): 	The getName() method retrieves the name of a thread.
+setName(): 	The setName() method updates the name of a thread.
+
+  
+Python Multithreading – Synchronizing threads.
+-----------------------------------------------
+Locking is required to control access to shared resources to prevent corruption or missed data.
+Lock() method to apply locks, it returns the new lock object. 
+Then, you can invoke the acquire(blocking) method of the lock object to enforce threads to run synchronously.
+
+ The optional blocking parameter specifies whether the thread waits to acquire the lock.
+
+    In case, blocking is set to zero, the thread returns immediately with a zero value if the lock can’t be acquired and with a 1 if the lock was acquired.
+    In case, blocking is set to 1, the thread blocks and wait for the lock to be released.
+
+The release() method of the lock object is used to release the lock when it is no longer required. 
+  
+Python multithreading example for locking
+-----------------------------------------------  
+# Python multithreading example to demonstrate locking.
+#1. Define a subclass using Thread class.
+#2. Instantiate the subclass and trigger the thread. 
+#3. Implement locks in thread's run method.  
+  
+import threading 
+import datetime
+
+exitFlag =0
+
+class myThread(threading.Thread):
+	def __init__(self,name,counter):
+		threading.Thread.__init__(self)
+		self.threadID=counter 
+		self.name=name
+		self.counter=counter 
+		
+	def run(self):
+		print "starting :"+ self.name
+		# Acquire lock to synchronize thread 
+		threadLock.acquire()
+		print_date(self.name, self.counter) 
+		# Release lock for the next thread 
+		threadLock.release()
+		print "Exiting: "+ self.name
+	
+def print_date(threadName,counter):
+	datefields =[]
+	today = datetime.date.today()
+	datefields.append(today)
+	print "%s[%d]:%s" %(threadName,counter,datefields[0])
+
+
+threadLock=threading.Lock()
+threads=[]
+# create new threads 
+thread1 = myThread("Thread",1)
+thread2 = myThread("Thread",2)
+
+thread1.start()
+thread2.start()
+
+threads.append(thread1)
+threads.append(thread2)
+
+for t in threads:
+	t.join()
+
+print "Exiting the Program!!!"					  
+  

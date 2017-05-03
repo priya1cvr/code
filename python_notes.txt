@@ -55,11 +55,111 @@ Unpacking in python 2.7
 >>> 
 
 Unpacking in python 3.x
->>> record = ('Dave', 'dave@example.com', '773-555-1212', '847-555-1212') >>> name, email, *phone_numbers = user_record>>> name'Dave'>>> email'dave@example.com'>>> phone_numbers 
+>>> record = ('Dave', 'dave@example.com', '773-555-1212', '847-555-1212') >>> name, email, *phone_numbers = user_record
+>>> name
+'Dave'
+>>> email
+'dave@example.com'
+>>> phone_numbers 
 ['773-555-1212', '847-555-1212'] 
 >>>
 
+There are 5 cases for using the underscore in Python.
+
+    1. For storing the value of last expression in interpreter.
+    2. For ignoring the specific values. (so-called “I don’t care”)
+    3. To give special meanings and functions to name of vartiables or functions.
+    4. To use as ‘Internationalization(i18n)’ or ‘Localization(l10n)’ functions.
+    5. To separate the digits of number literal value.
+
+1. When used in interpreter
+>>> _
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name '_' is not defined
+>>> 10
+10
+>>> _
+10
+>>> _*30
+300
+>>> _*2
+600
+
+2. For ignoring the specific values 
+
+# Ignore a value when unpacking
+>>> x, _, y = (1, 2, 3)
+>>> x,y
+(1, 3)
+
+# Ignore the multiple values. It is called "Extended Unpacking" which is available in only Python 3.x
+x, *_, y = (1, 2, 3, 4, 5) # x = 1, y = 5  
+
+# Ignore the index
+for _ in range(10):     
+    do_something()  
+
+# Ignore a value of specific location
+for _, val in list_of_tuple:
+    do_something()
+    
+ 3. Give special meanings to name of variables and functions
+   3.1 _single_leading_underscore
+   	This convention is used for declaring private variables, functions, methods and classes in a module. Anything with 	   this convention are ignored in from module import *. 
+ 	However, of course, Python does not supports truly private, so we can not force somethings private ones and also can 	     call it directly from other modules. So sometimes we say it “weak internal use indicator”.
+ 	>>> class _Base:
+	...     _hidden_factor = 2 
+	...     def __init__(self, price):
+	...             self._price = price
+	...     def _double_price(self):
+	...             return self._price * self._hidden_factor
+	...     def get_double_price(self):
+	...             return self._double_price() 
+	 
+	 >>> x=_Base(27)
+	>>> x._hidden_factor
+	2
+	>>> x._price
+	27
+	>>> x._double_price()
+	54
+	>>> x.get_double_price()
+	54
 
 
-
- 
+    3.2 __double_leading_underscore
+    	double underscore will mangle the attribute names of a class to avoid conflicts of attribute names between classes. 
+	mangling” - means that the compiler or interpreter modify the variables or function names with some rules.
+	if you write method named “__method” in a class, the name will be mangled in “_ClassName__method” form.
+	
+	>>> class A(object):
+	...     def _internal_use(self):
+	...             pass
+	...     def __method_name(self):
+	...             pass
+	... 
+	>>> dir(A)
+	['_A__method_name',...'_internal_use']
+	
+	_internal_use doesn’t change but __method_name is mangled to _ClassName__method_name. 
+	Now, if you create a subclass of A, say B then you can’t easily override A‘s __method_name:
+	
+	>>> class B(A):
+	...     def __method_name(self):
+	...             pass
+	... 
+	>>> dir(B)
+	['_A__method_name', '_B__method_name',....'_internal_use'] 
+	
+	Because of the attributes named with double underscore will be mangled like above, we can not access it with 	        “ClassName.__method”. Sometimes, some people use it as like real private ones using these features, but it is 	         not for    private and not recommended for that.
+   
+   3.3 single_trailing_underscore_
+	This convention could be used for avoiding conflict with Python keywords or built-ins. You might not use it often.
+	list_ = List.objects.get(1) # Avoid conflict with 'list' built-in type
+	
+   3.4 __double_leading_and_trailing_underscore__
+   	This convention is used for special variables or methods (so-called “magic method”) such as__init__, __len__. These 	   methods provides special syntactic features or does special things. For example, __file__ indicates the location of 	 	Python file, __eq__ is executed when a == b expression is excuted. 
+   	You then typically override these methods and define the desired behaviour for when Python calls them. 
+	For example,  you often override the __init__ method when writing a class.
+   

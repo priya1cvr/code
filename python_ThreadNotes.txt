@@ -13,6 +13,70 @@ name: This is the name of the thread; by default, a unique name of the form Thre
 args: This is the tuple of arguments that are to be passed to a target
 kwargs: This is the dictionary of keyword arguments that are to be used for the target function
 
+1. Intro to thread 
+import threading 
+def main():
+	print threading.active_count()
+	print threading.enumerate()
+	print threading.current_thread()
+
+if(__name__=='__main__'):
+	main()	
+
+# it creates one thread i.e main thread as it is the only program running .
+
+
+2. # creating our own thread 
+
+import threading 
+def do_this():
+	print 'this is our thread!'
+def main():
+	#you create a thread 
+	our_thread =threading.Thread(target=do_this)
+	#after creating thread you need to execute it 
+	our_thread.start()
+	print threading.active_count()
+	print threading.enumerate()
+	print threading.current_thread()
+
+if(__name__=='__main__'):
+	main()	
+
+Note: since 2 functions (threads) running at the same time ,so one might finsh before other one and in enumerate you will probably 
+see only 1 result 
+
+3. Terminating a thread 
+
+import threading 
+def do_this():
+	print 'this is our thread!'
+	global dead 
+	'''
+	# this goes infinite loop so you need to terminate this thread 
+	while(True):
+		pass
+	'''	
+	while(not dead ) :
+		pass	
+
+def main():
+	global dead
+	dead =False
+	#you create a thread 
+	our_thread =threading.Thread(target=do_this)
+	#after creating thread you need to execute it 
+	our_thread.start()
+	print threading.active_count()
+	print threading.enumerate()
+	print threading.current_thread()
+
+	raw_input('Hit enter to die')
+	dead=True
+
+if(__name__=='__main__'):
+	main()	
+============================================================================
                        
 Using arguments to identify or name the thread is cumbersome and unnecessary. Each Thread instance has a name with a default value that can be changed as the thread is created. 
 Naming threads is useful in server processes with multiple service threads that handle different operations.

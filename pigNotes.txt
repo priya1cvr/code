@@ -346,3 +346,12 @@ DUMP B ;
 (20, RESEARCH, DALLAS)
 (30, SALES, CHICAGO)
 (40, OPERATIONS, BOSTON)
+
+Load ctrl A delimited file 
+---------------------------
+File input : 
+1704S^A143441^A4^A1003^A100001^A-1^A0^A-1^A0^A0^AUS^AUSD^A2016-12-11^A0^A111111
+
+A = LOAD '/home/devo/c4493001/pratice/cross_border.txt' USING PigStorage('\u0001');
+DUMP A ;
+(1704S,143441,4,1003,100001,-1,0,-1,0,0,US,USD,2016-12-11,0,111111)

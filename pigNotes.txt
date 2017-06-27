@@ -324,3 +324,21 @@ create set of all authors who wrote a book in a particular year
 grpByYearAuth =  foreach grpd generate $0,books_refine.BookAuthor ;
   
   
+  Remove the delimiters in Hadoop using pig : 
+------------------------------------------------
+we need to remove the single quotes  and extra ( in file 
+
+(10, 'ACCOUNTING', 'NEW YORK')
+(20, 'RESEARCH', 'DALLAS')
+(30, 'SALES', 'CHICAGO')
+(40, 'OPERATIONS', 'BOSTON')  
+  
+A =Load '/home/devo/c4493001/pratice/dept.txt' as (line:chararray); 
+DUMP A ;
+((10, 'ACCOUNTING', 'NEW YORK'))
+((20, 'RESEARCH', 'DALLAS'))
+((30, 'SALES', 'CHICAGO'))
+((40, 'OPERATIONS', 'BOSTON'))
+ 
+B = FOREACH A GENERATE REPLACE(line,'[\\\'\\(\\)]+','');
+DUMP B ;

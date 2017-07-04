@@ -1,0 +1,63 @@
+Understanding Spark
+----------------------
+
+Hadoop relies on a distributed framework for storage called HDFS (Hadoop Distributed File System). Hadoop runs map-reduce tasks in batch jobs. Hadoop requires persisting the data to disk at each map, shuffle, and reduce process step. The overhead and the latency of such batch jobs adversely impact the performance.
+
+Spark is a fast, distributed general analytics computing engine for large-scale data processing. The major breakthrough from Hadoop is that Spark allows data sharing between processing steps through in-memory processing of data pipelines.
+
+Spark is unique in that it allows four different styles of data analysis and processing. Spark can be used in:
+
+Batch: This mode is used for manipulating large datasets, typically performing large map-reduce jobs
+Streaming: This mode is used to process incoming information in near real time
+Iterative: This mode is for machine learning algorithms such as a gradient descent where the data is accessed repetitively in order to reach convergence
+Interactive: This mode is used for data exploration as large chunks of data are in memory and due to the very quick response time of Spark
+
+Spark operates in three modes: one single mode-standalone on a single machine and two-distributed modes on a cluster of machines—on Yarn, the Hadoop distributed resource manager, or on Mesos, the open source cluster manager developed at Berkeley concurrently with Spark
+
+Spark libraries
+Spark comes with batteries included, with some powerful libraries:
+
+SparkSQL: This provides the SQL-like ability to interrogate structured data and interactively explore large datasets
+SparkMLLIB: This provides major algorithms and a pipeline framework for machine learning
+Spark Streaming: This is for near real-time analysis of data using micro batches and sliding widows on incoming streams of data
+Spark GraphX: This is for graph processing and computation on complex connected entities and relationships.
+
+PYSPARK IN ACTION
+Spark is written in Scala.The whole Spark ecosystem naturally leverages the JVM environment and capitalizes on HDFS natively.
+PySpark is not a transcribed version of Spark on a Java-enabled dialect of Python such as Jython. PySpark provides integrated API bindings around Spark and enables full usage of the Python ecosystem within all the nodes of the cluster with the pickle Python serialization and, more importantly, supplies access to the rich ecosystem of Python's machine learning libraries such as Scikit-Learn or data processing such as Pandas.
+
+
+When we initialize a Spark program, the first thing a Spark program must do is to create a SparkContext object. It tells Spark how to access the cluster.The Python program creates a PySparkContext.
+
+Py4J is the gateway that binds the Python program to the Spark JVM SparkContext. The JVM SparkContextserializes the application codes and the closures and sends them to the cluster for execution. 
+
+The cluster manager allocates resources and schedules, and ships the closures to the Spark workers in the cluster who activate Python virtual machines as required. In each machine, the Spark Worker is managed by an executor that controls computation, storage, and cache.
+
+
+
+	---------THE RESILIENT DISTRIBUTED DATASET--------
+Spark applications consist of a driver program that runs the user's main function, creates distributed datasets on the cluster, and executes various parallel operations (transformations and actions) on those datasets.
+
+Spark applications are run as an independent set of processes, coordinated by a SparkContext in a driver program.
+
+
+The SparkContext will be allocated system resources (machines, memory, CPU) from the Cluster manager.
+
+The SparkContext manages executors who manage workers in the cluster. The driver program has Spark jobs that need to run. The jobs are split into tasks submitted to the executor for completion. The executor takes care of computation, storage, and caching in each machine.
+
+
+------------Understanding Anaconda---------------
+Anaconda is a widely used free Python distribution maintained by Continuum (https://www.continuum.io/). 
+The PyData ecosystem is promoted, supported, and maintained by Continuum and powered by the Anaconda Python distribution.
+
+The key components of the Anaconda stack are as follows:
+
+Anaconda: free Python distribution with almost 200 Python packages for science, math, engineering, and data analysis.
+Conda: package manager that takes care of all the dependencies of installing a complex software stack. 
+Numba: code Accelerator in Python with high-performance functions and just-in-time compilation.
+Blaze:  Integration and scale 
+Bokeh:  interactive data visualizations for large and streaming datasets.
+Wakari:  share and deploy IPython Notebooks and other apps on a hosted environment.
+
+
+

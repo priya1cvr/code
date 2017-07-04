@@ -1,0 +1,324 @@
+----Standalone Cluster----
+
+If you have your own computer then standalone cluster is a simple way of get going .
+Spark Cluster consists of several master and one or more slave nodes .
+This is the path where i have kept the spark files 
+C:\Users\bishwal\Downloads\others\spark-1.6.2-bin-hadoop2.6\spark-1.6.2-bin-hadoop2.6\bin 
+Now to start a master 
+./start-master.sh (in unix)
+in windows follow these steps :
+1) Step1 : First go to "C:\Users\bishwal\Downloads\others\spark-1.6.2-bin-hadoop2.6\spark-1.6.2-bin-hadoop2.6\bin" Dir and run below commands
+spark-class org.apache.spark.deploy.master.Master
+2) Step 2 : You will get the master url spark://IP:PORT
+e.g 
+16/12/22 11:08:36 INFO Master: Starting Spark master at spark://16.168.197.218:7077
+now start worker
+spark-class org.apache.spark.deploy.worker.Worker spark://IP:PORT
+i.e 
+open another command prompt and go the the same bin loaction and paste below 
+spark-class org.apache.spark.deploy.worker.Worker spark://16.168.197.218:7077
+it will show 
+16/12/22 11:12:58 INFO Worker: Successfully registered with master spark://16.168.197.218:7077
+
+3) Step3 : connect application vs cluster
+
+spark-shell --master spark://IP:PORT
+open another command prompt and go the the same bin loaction and paste below 
+spark-shell --master spark://16.168.197.218:7077
+now you are in scala shell:
+	Using Scala version 2.10.5 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_101)
+	Type in expressions to have them evaluated.
+	Type :help for more information.
+	Spark context available as sc.
+
+	 --------OR-------
+After executing spark-class org.apache.spark.deploy.master.Master, 
+just goto http://localhost:8080 to get ip:port. And then open another 
+command shell to execute spark-class org.apache.spark.deploy.worker.Worker spark://IP:PORT	 
+http://localhost:8080 in webbrowser gives below:
+
+URL: spark://16.168.197.218:7077
+REST URL: spark://16.168.197.218:6066 (cluster mode)
+Alive Workers: 1
+Cores in use: 4 Total, 4 Used
+Memory in use: 6.9 GB Total, 1024.0 MB Used
+Applications: 1 Running, 0 Completed
+Drivers: 0 Running, 0 Completed
+Status: ALIVE
+
+-The standalone cluster is resilient against slave lost  ,you lose the processing power that 
+slave contributed but it won't let the cluster down ,loosing the master node is a different story
+it wil make all the new jobs to get stopped being scheduled ,to make a workaround of it you can use
+one of 2 availablility setup ,you can setup stand-by masters through zookeepers when main master dies
+then stand-by will take up administering the cluster ,the failover process takes a minute or 2 
+Alternately ,you can use single node recovery with file system option 
+this is done by writing a master state out to disk 
+whenever a master is started it checks whether there is any old state before and resume from there,
+it does help when master dies for some reason .
+once your job is up and running then you can run spark-submit.sh script ,it has bunch of scripts to
+get your job right ,basically it will package and shift your job to the cluster .
+
+
+-----------------Mesos--------------------
+Mesos is a popular open source cluster manager developed by Apache software foundation.
+It lets you share once cluster under many different application .
+its easier to run spark on it, you need to make sure spark is installed on all the nodes .
+when you run spark job you get resources from mesos cluster .
+
+----------------YARN-----------------------
+YARN is next gen cluster management from hadoop project .it seperates cluster management from 
+actual map-reduce application i.e hadoop i.e you can run other things like spark on YARN.
+Running spark on YARN is as easy as running submit scipt in spark installed directory .
+
+--------------ClientVsCluster Mode-----------
+Client Mode: (your computer  	)
+	-Driver runs in client
+	-Master gets resources ,communicates resources back to client 
+	-client communicates directly with executors 
+Cluster Mode:
+	-Driver runs in master in the cluster
+	-Master communicates with executors ,all within the cluster 
+	-Client exits as soon as it passes info to the master 
+	
+
+========================================================SPARK-SQL========================================================================
+	 
+911.csv present in /Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication(orielly)
+
+The data set description for the 911 data is as follows:
+
+lat: String variable, Latitude
+lng: String variable, Longitude
+desc: String variable, Description of the Emergency Call
+zip: String variable, Zip code
+title: String variable, Title
+timeStamp: String variable, YYYY-MM-DD HH:MM:SS
+twp: String variable, Township
+addr: String variable, Address
+e: String variable, Dummy variable (always 1)
+
+
+scala code for parsing the data in DataFrame 
+--------------------------------------------
+
+val data = sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication(orielly)/911.csv")
+ 
+val header = data.first()
+ 
+val data1 = data.filter(row => row != header)
+ 
+case class emergency(lat:String,lng:String,desc:String,zip:String,title:String,timeStamp:String,twp:String,addr:String,e:String)
+ 
+val emergency_data = data1.map(x=>x.split(",")).filter(x => x.length>=9).map(x => emergency(x(0),x(1),x(2),x(3),x(4).substring(0 , x(4).indexOf(":")),x(5),x(6),x(7),x(8))).toDF
+ 
+emergency_data.registerTempTable("emergency_911")
+
+The first three lines of code will remove the header from the dataset.
+In the 4th line, we have declared a case class with the schema of the 911 dataset.
+In the 5th line, we have parsed the data into the case class, which we have declared, and in the 5th column, we are taking out the string up to the character :, because here we need only the cause of calling to the emergency number. Check if it’s correct.
+In the 6th line, we are registering the data in a table and naming it as emergency_911.
+
+
+python code for parsing the data in dataFrame 
+-------------------------
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
+from pyspark.sql import  Row
+
+spark = SparkSession.builder.appName("Emergency HelpLine").config("spark.some.config.option", "some-value").getOrCreate()
+
+data = sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication(orielly)/911.csv")
+header = data.first()
+
+data1= data.filter(lambda row:row not in header)
+
+# case class equivalent code defined as a function in pyspark
+def emergency(line):
+	tempList=[]
+	for i in line.split(','):
+		tempList.append(i)
+	return [tempList[0],tempList[1],tempList[2],tempList[3],tempList[4].split(":")[0],tempList[5],tempList[6],tempList[7],tempList[8]] 
+
+data2 = data1.map(emergency)
+emergency_data=data2.map(lambda p:Row(lat=p[0],lng=p[1],desc=p[2],zip=p[3],title=p[4],timeStamp=p[5],twp=p[6]
+				,addr=p[7],e=p[8]))
+Note
+# Row can be used to create a row object by using named arguments, the fields will be sorted by names.
+e.g row = Row(name="Alice", age=11)
+
+
+emergency_data_DF=spark.createDataFrame(emergency_data)
+Note:
+# Dataset and DataFrame API registerTempTable has been deprecated and replaced by createOrReplaceTempView
+emergency_data_DF.createOrReplaceTempView("emergency_911")
+
+#sql_DF=spark.sql("select * from emergency_911 limit 2")
+sql_DF=spark.sql("select * from emergency_911 ")
+sql_DF.show()
++--------------------+--------------------+---+----------+-----------+-------------------+-----+-----------------+-----+
+|                addr|                desc|  e|       lat|        lng|          timeStamp|title|              twp|  zip|
++--------------------+--------------------+---+----------+-----------+-------------------+-----+-----------------+-----+
+|REINDEER CT & DEA...|REINDEER CT & DEA...|  1|40.2978759|-75.5812935|2015-12-10 17:40:00|  EMS|      NEW HANOVER|19525|
+|BRIAR PATH & WHIT...|BRIAR PATH & WHIT...|  1|40.2580614|-75.2646799|2015-12-10 17:40:00|  EMS|HATFIELD TOWNSHIP|19446|
++--------------------+--------------------+---+----------+-----------+-------------------+-----+-----------------+-----+
+
+P:S VVIMP : Note
+The dataFrame can also be created without using the row object but in that case you won't get the header in the final output as mentioned below:
+
+emergency_data_DFx = spark.createDataFrame(data2)
+emergency_data_DFx.createOrReplaceTempView("emergency_911x")
+sql_DFx=spark.sql("select * from emergency_911x limit 2")
+sql_DFx.show()
+the header comes as _1,_2 ...
++----------+-----------+--------------------+-----+---+-------------------+-----------------+--------------------+---+
+|        _1|         _2|                  _3|   _4| _5|                 _6|               _7|                  _8| _9|
++----------+-----------+--------------------+-----+---+-------------------+-----------------+--------------------+---+
+|40.2978759|-75.5812935|REINDEER CT & DEA...|19525|EMS|2015-12-10 17:40:00|      NEW HANOVER|REINDEER CT & DEA...|  1|
+|40.2580614|-75.2646799|BRIAR PATH & WHIT...|19446|EMS|2015-12-10 17:40:00|HATFIELD TOWNSHIP|BRIAR PATH & WHIT...|  1|
++----------+-----------+--------------------+-----+---+-------------------+-----------------+--------------------+---+
+
+
+Now, let’s follow the same procedure for the Zipcodes data set also.
+
+scala code for parsing the data in DataFrame 
+--------------------------------------------
+val data2 = sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication(orielly)/zipcode.csv")
+ 
+val header1 = data2.first()
+ 
+val data3 = data2.filter(row => row != header1)
+ 
+case class zipcode(zip:String,city:String,state:String,latitude:String,longitude:String,timezone:String,dst:String)
+ 
+val zipcodes = data3.map(x => x.split(",")).map(x=> zipcode(x(0).replace("\"", "")
+,x(1).replace("\"", ""),x(2).replace("\"", ""),x(3),x(4),x(5),x(6))).toDF
+
+
+zipcodes.registerTempTable("zipcode_table")
+
+The first three lines of code will remove the header from the dataset.
+In the 4th line, we have declared a case class with the schema of the Zipcode dataset.
+In the 5th line, we are parsing the dataset into the dataset into the case class, which we have declared, and we are removing the Double quotes from the required columns for our analysis.
+In the 6th line, we are registering data into a table and naming it as zipcode_table.
+
+python code for parsing the data in dataFrame 
+-------------------------
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
+from pyspark.sql import  Row
+
+spark = SparkSession.builder.appName("ZipCode HelpLine").config("spark.some.config.option", "some-value").getOrCreate()
+
+data3 = sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication(orielly)/zipcode.csv")
+header1 = data3.first()
+
+data4= data3.filter(lambda row:row not in header1)
+
+# case class equivalent code defined as a function in pyspark
+def zipcode(line):
+	tempList=[]
+	for i in line.split(','):
+		tempList.append(i)
+	return [tempList[0].replace("\"", ""),tempList[1].replace("\"", ""),tempList[2].replace("\"", ""),
+			tempList[3],tempList[4],tempList[5],tempList[6]] 
+
+
+data5 = data4.map(zipcode)
+zipcodes=data5.map(lambda p:Row(zip=p[0],city=p[1],state=p[2],latitude=p[3],longitude=p[4],timezone=p[5],dst=p[6] ))
+
+
+zipcodes_data_DF=spark.createDataFrame(zipcodes)
+zipcodes_data_DF.createOrReplaceTempView("zipcode_table")
+
+Note:
+# Dataset and DataFrame API registerTempTable has been deprecated and replaced by createOrReplaceTempView
+
+# Zip_sql_DF=spark.sql("select * from zipcode_table limit 2")
+Zip_sql_DF=spark.sql("select * from zipcode_table ")
+Zip_sql_DF.show()
+
++----------+---+-----------+------------+-----+--------+-----+
+|      city|dst|   latitude|   longitude|state|timezone|  zip|
++----------+---+-----------+------------+-----+--------+-----+
+|Portsmouth|"1"|"43.005895"|"-71.013202"|   NH|    "-5"|00210|
+|Portsmouth|"1"|"43.005895"|"-71.013202"|   NH|    "-5"|00211|
++----------+---+-----------+------------+-----+--------+-----+
+
+Now, we are ready to join both the datasets by taking the required columns for our analysis
+
+
+In Scala
+--------
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+val build1 = sqlContext.sql("select e.title, z.city,z.state from emergency_911 e join zipcode_table z on e.zip = z.zip")
+
+In Pyspark
+----------
+from pyspark.sql import SQLContext
+from pyspark.sql import HiveContext
+sqlContext = HiveContext(sc)
+build1 = sqlContext.sql("select e.title, z.city,z.state from emergency_911 e join zipcode_table z on e.zip = z.zip group by e.title, z.city,z.state ")
+
+VVIMP: PS NOTE:
+sqlContext = SQLContext(sc) - if you use this and then fire the build1 statement above then it will give table not found error
+
+When you use PySpark shell, and Spark has been build with Hive support, default SQLContext implementation (the one available as a sqlContext) is HiveContext.
+In your standalone application you use plain SQLContext which doesn't provide Hive capabilities.
+
+build1.show()
++-------+---------------+-----+                                                 
+|  title|           city|state|
++-------+---------------+-----+
+|    EMS|           Palm|   PA|
+|   Fire|      Wynnewood|   PA|
+....
+|    EMS|      Bryn Mawr|   PA|
+|Traffic|      Bryn Mawr|   PA|
++-------+---------------+-----+
+
+build1.show(build1.count())  - to get all the records 
+
+Problem Statement 1:
+
+What kind of problems are prevalent, and in which state?
+
+In Scala 
+----------
+val ps = build1.map(x => (x(0)+" -->"+x(2).toString))
+ 
+val ps1 = ps.mapValues(x=> (x,1)).reduceByKey(_+_).map(item => item.swap).sortByKey(false).foreach(println)
+
+In PySpark
+--------------
+ps =build1.map(lambda x: (x.title,x.state))
+AttributeError: 'DataFrame' object has no attribute 'map'
+
+so,
+ps =build1.rdd.map(lambda x: (x.title,x.state))
+ps1 = ps.mapValues(lambda x : (x,1)).reduceByKey(lambda x, y: (x[0] , x[1] + y[1])).map(lambda (x,y) :(y,x))
+
+o/p of mapValues : [(u'EMS', (u'PA', 1)), (u'EMS', (u'PA', 1))] 
+Here (u'PA', 1) - x , (u'PA', 1)-y so x[0]='PA' and x[1]+y[1] =1+1
+
+ps1.collect()
+[((u'PA', 77), u'Traffic'), ((u'PA', 83), u'EMS'), ((u'PA', 74), u'Fire')]      
+
+
+Problem Statement 2:
+
+What kind of problems are prevalent, and in which city?
+
+
+In Scala 
+----------
+val ps = build1.map(x => (x(0)+" -->"+x(1).toString))
+ 
+val ps1 = ps.map(x=> (x,1)).reduceByKey(_+_).map(item => item.swap).sortByKey(false).foreach(println)
+
+In PySpark
+--------------
+
+ps =build1.rdd.map(lambda x: (x.city,x.title))
+ps1 = ps.mapValues(lambda x : (x,1)).reduceByKey(lambda x, y: (x[0] , x[1] + y[1])).map(lambda (x,y) :(y,x))
+ps1.collect()
+[((u'Fire', 3), u'Conshohocken'), ((u'Traffic', 2), u'Upper Darby'), ((u'Traffic', 1), u'Malvern'), ((u'Traffic', 3), u'Elkins Park')u'Lafayette Hill') ....]

@@ -1,0 +1,591 @@
+
+
+----key Value Pairs RDD-----
+  ----GroupBy Key----
+ allows to operate on key value pairs in RDD according to keys 
+pairs=sc.parallelize([("a",1),("a",2),("b",3),("c",4)] ,numSlices=4)
+pairs.groupByKey().collect()
+[('a', <pyspark.resultiterable.ResultIterable object at 0x0000000002C265C0>), 
+('c', <pyspark.resultiterable.ResultIterable object at 0x0000000002C265F8>), 
+('b', <pyspark.resultiterable.ResultIterable object at 0x0000000002C26588>)]
+
+pairs.groupByKey().collect()[0][1]
+<pyspark.resultiterable.ResultIterable object at 0x0000000002CB0CF8>
+[x for x in pairs.groupByKey().collect()[0][1]]
+[1, 2] # groups a key in one iterable , a has 1,2 
+ groupByKey by key degrades performance when data set is very very huge 
+ 
+ ----ReduceByKey----
+ useful for calculating aggregates ,if you want to have single aggregates over entire data 
+ state it is useful .
+ but if you want to calculate aggregates with smaller data set then try to make it a key value pairs
+ and do the aggregates on that particular key 
+ 
+states=sc.parallelize(["TX","TX","CA","TX","CA"])
+import operator 
+states.map(lambda x:(x,1)).reduceByKey(operator.add).collect() 
+#map(lambda x:(x,1)) ,this makes (TX,1) (TX,1) (CA,1) (TX,1) (CA,1)
+[('CA', 2), ('TX', 3)] # lambda function maps each entry into a pair ,matching key gets added 
+>>> states.map(lambda x:(x,1)).reduceByKey(lambda x,y:x+y).collect() 
+[('CA', 2), ('TX', 3)] 
+The key is constant and the matching key having values gets added 
+
+#the function you pass has to be commutative and associative 
+
+if your reduce task puts all of the things in a list then use groupByKey tranformation 
+
+-------------Aggregate Function---------
+aggregate(zeroValue, seqOp, combOp)
+Aggregate lets you take an RDD and generate a single value that is of a different type than what 
+was stored in the original RDD.
+
+It does this with three parameters. A zeroValue (or initial value) in the format of the result. 
+A seqOp function that given the resulting type and an individual element in the RDD will merge 
+the RDD element into the resulting object.
+
+The combOb merges two resulting objects together.
+
+e.g 
+We want to take a list of records about people and then we want to sum up their ages and count them. So for this example the type in the RDD will be a Dictionary in the format of {name: NAME, age:AGE, gender:GENDER}. 
+The result type will be a tuple that looks like so (Sum of Ages, Count)
+
+Lets first generate a peopleRDD with 5 people
+>>> people = []
+>>> people.append({'name':'Bob', 'age':45,'gender':'M'})
+>>> people.append({'name':'Gloria', 'age':43,'gender':'F'})
+>>> people.append({'name':'Albert', 'age':28,'gender':'M'})
+>>> people.append({'name':'Laura', 'age':33,'gender':'F'})
+>>> people.append({'name':'Simone', 'age':18,'gender':'T'})
+>>>
+>>>
+>>> peopleRdd=sc.parallelize(people)
+>>> len(peopleRdd.collect())
+5
+
+Now we need to create the seqOp. This takes an object of the rdd type and merge it into a record 
+of the result type. Or another way to say this is add the age to the first element of the 
+resulting tuple and add 1 for the second element of the tuple.
+seqOp = (lambda x,y: (x[0] + y['age'],x[1] + 1))
+
+Now we write an operation to merge two resulting tuple.
+combOp = (lambda x,y: (x[0] + y[0], x[1] + y[1]))
+
+peopleRdd.aggregate((0,0), seqOp, combOp)
+(167, 5)
+# seqOp takes initial value of (0,0) as tuple 
+peopleRDD.seqOp - lambda x is (0,0) and y is peopleRDD it adds x[0] i.e 0+y['age'] i.e 45
+so peopleRdd.aggregate((0,0), seqOp ) ouput is (0+45,0+1) i.e (45,1)
+if we take all seqOp as whole it gives (45,1) (43,1) (28,1) .....
+Now this is fed to combOb x:(45,1) y:(43,1)=>(x[0] + y[0], x[1] + y[1]) =>(45+43,1+1)=(98,2)
+in this way the result is added in all other nodes and finally combined 
+
+----AggregateByKey----
+similar to reduceByKey ,takes 3 arguments 
+1st arguments is zero_value value, 2nd argument given the resulting type and an individual element in the RDD ,
+3rd argument combines results from different partition
+zero_value=set()
+def seq_op(x,y):  # adds argument to a set 
+	x.add(y)
+	return x
+	
+def com_op(x,y): # combines 2 set 
+	return x.union(y)
+
+numbers=sc.parallelize([0,0,1,2,5,4,5,5,5]).map(lambda x:["even" if 
+		(x %2)==0 else "odd",x])
+numbers.collect()
+[['even', 0], ['even', 0], 
+['odd', 1], ['even', 2], ['odd', 5], ['even', 4], 
+['odd', 5], ['odd', 5], ['odd', 5]]
+# now use aggregateByKey with set constructor
+numbers.aggregateByKey(zero_value,seq_op,com_op).collect()		
+[('even', set([0, 2, 4])), ('odd', set([1, 5]))]
+
+----sortByKey-------
+allows to sorty key value pair by key 
+pairs=sc.parallelize([("B",1),("a",2),("A",3),("d",4)])	
+pairs.sortByKey().collect()
+[('A', 3), ('B', 1), ('a', 2), ('d', 4)]
+pairs.sortByKey(ascending=False).collect()
+[('d', 4),('a', 2), ('B', 1),('A', 3)  ]
+
+pairs.sortByKey(numPartitions=1).glom().collect()
+# makes into 1 partition ,glom function to see partition
+[[('A', 3), ('B', 1), ('a', 2), ('d', 4)]]
+
+pairs.sortByKey(numPartitions=3).glom().collect()
+# makes into 3 partition ,glom function to see partition
+[[('A', 3), ('B', 1)], [('a', 2)], [('d', 4)]]  # A,B in 1 partition ,2nd is a ,3rd is d 
+
+pairs.sortByKey(keyfunc=lambda x:x.lower()).glom().collect()
+[[], [], [('a', 2), ('A', 3), ('B', 1), ('d', 4)], []]
+# keyfunc which is a kind of preprocessor for sorting each key is passed through key func 
+and is sorted ,it doesn't change the output value , here we have a's first then b then d 
+if you are sorting data it is not already in key value pairs then use sort tranformation 
+else use sortByKey to make data in order .
+
+----Join Transformation ----
+combines all key in one rdd 
+a=sc.parallelize([(1,"a"),(2,"a")])
+b=sc.parallelize([(2,"b"),(3,"b")])
+join operate on keys so only output we get where keys matched 
+a.join(b).collect()
+[(2,('a','b'))]
+what happens when we do with more than 1 match ? 
+
+c=sc.parallelize([(2,"b"),(3,"b"),(2,"c")])
+a.join(c).collect()
+[(2,('a','b'),(2,('a','c')]
+# it may seem wierd ,we have 2 pairs with 2 in them in rdd c & we have 2 matches between a and c 
+  we get an ouput pair for each of those matches ,if we have number 2 twice in rdd a 
+  and number 2 twice in rdd c then join would produce 4 pairs of output 
+if you expect to have many items with the same key then you might put them all in the same group 
+so check out cogroup transformation 
+
+one thing to notice is the key which doesn't match gets lost , so spark provides left ,right and 
+full outer join 
+a.leftOuterJoin(b).collect()
+ [(1,('a',None)),(2,('a','b'))] 
+ 
+----cogroup in spark-----
+it allows you to combine 2 key value pair rdd like join however join and cogroup differ in the way
+they handle repeated keys 
+
+a=sc.parallelize([(1,"a"),(2,"a")]) 
+b=sc.parallelize([(2,"b"),(2,"c"),(3,"d")])
+
+a.join(b).collect()
+[(2,('a','b'),(2,('a','c')))]
+a.cogroup(b).collect()
+
+a.cogroup(b).mapValues(lambda x:[list(x[0]) ,list(x[1])]).collect()
+[(1,[['a'],[]]) ,(2,[['a'],['b','c']]),(3,[[],['d']]) 
+# it forces from iterable to list 
+cogroup provides an ouput for each of the keys we have,for 1 it just has an a, for 2 it has a ,then b,calculate
+for 3 it has only d
+it provides a list of values for each key on both sides, if you need to see everything for each  
+all of once from both rdd then cogroup is right
+
+--------------------Input and Output---------------------------------
+	----WholeTextFile----
+it is a method on spark context that allows you to a directory of text files and running them as 
+pairs .
+textfile returns an rdd with one element for each line in input text file .
+wholeTextFile  	returns an rdd with one element for each file and that file in tuple
+ 
+ sample_input is a directory that has 2 text files 
+ 
+sc.textFile("sample_input").collect()  # return 5 element
+[u'This is some test data ', u'That takes more than one line .'
+, u'This is also second text file .', u'Is it also', u'multiple line.']
+
+sc.wholeTextFiles("sample_input.txt").collect() 
+# retuns 2 element i.e (file name,content) (file name,content)
+
+[(u'file:/C:/Users/bishwal/Downloads/others/spark-1.6.2-bin-hadoop2.6/spark-1.6.2-bin-hadoop2.6/sample_input/sample_input1.txt', 
+u'This is some test data \r\nThat takes more than one line .'), 
+(u'file:/C:/Users/bishwal/Downloads/others/spark-1.6.2-bin-hadoop2.6/spark-1.6.2-bin-hadoop2.6/sample_input/sample_input2.txt',
+ u'This is also second text file .\r\nIs it also\r\nmultiple line.')]
+
+while choosing between textFile and wholeTextFile you need to decide whether each text file is 
+an item or each line in file is an item .
+wholeTextFile works with relatively short files e.g 10GB log files won't be working out good
+
+ ----Pickle Files-----
+ These files store and load python object in spark ,named after python pickle module 
+ A common use case:
+ Load in data from text file and process that file from python main object then save those python
+ objects into pickle file then later when you want to reload domain objects use that pickle files 
+ 
+sc.parallelize(["a",1,{"key":"value"}]).saveAsPickleFile("picklefile")
+ # this rdd contains string ,int,map 
+sc.pickleFile("picklefile").collect()
+["a",1,{"key":"value"}]
+with picklefile you don't have to think about text format for your data 
+
+----Hadoop Input Format and Hadoop ouput Format -----
+pyspark has tons of possibility with i/p and o/p 
+pyspark is python and hadoop i/p format is java which incurs cross language compatibility 
+there are 2 hadoop i/p format API .How do you know i/p format is old or new version ? 
+	
+## read the documentation for more details , i didnt understand from videos .
+
+-----------------Performance in Spark---------------------------
+
+----Broadcast Variables-----
+sometimes you need to share a data set with all your executors 
+the obvious way to do it as set it as a variable and refrence it within a processing fucntion
+important_data=21
+rdd=sc.parallelize(xrange(5))
+rdd.map(lambda x:x+important_data).collect() 
+[21, 22, 23, 24, 25]
+what if we had a process like below:
+rdd.map(lambda x:x+important_data).repartition(2).map(lambda x:x+important_data).collect()
+[42, 43, 44, 45, 46]	# repartition shuffles 
+
+Broadcast variables allow the programmer to keep a read-only variable cached on each machine rather than shipping a copy of it with tasks.
+
+broadcast variable sends your data once instead for each step 
+broadcast variable are read only ,don't change in executors
+important_data=sc.broadcast(21)
+16/12/21 14:54:38 INFO SparkContext: Created broadcast 4 from broadcast at PythonRDD.scala:430
+
+>>> important_data
+<pyspark.broadcast.Broadcast object at 0x0000000002AB5550>
+>>> important_data.value
+21
+rdd.map(lambda x:x+important_data.value).collect()
+[21, 22, 23, 24, 25]
+
+when done with broadcast variable then unpersist 
+important_data.unpersist()
+
+
+You use broadcast variable to implement map-side join, i.e. a join using a map. For this, lookup tables are distributed across nodes in a cluster using broadcast and then looked up inside map (to do the join implicitly).
+
+
+------Accumulators---------
+sometimes you want to get data as well as metadata ,these are type of variable you can add to 
+but only look at main driver of job .
+
+
+
+evens=sc.accumulator(0) # set up accumulator 
+numbers=sc.parallelize(xrange(10))
+def inc_and_reprot(x):  # if no. is even then increment even accumulator 
+	global evens  # to make global even, don't make  local 
+	if(x%2==0):
+		evens+=1
+	return x+1
+numbers.map(inc_and_reprot).collect() 	
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+>>> evens.value # count of even no. 
+5
+now run again 
+numbers.map(inc_and_reprot).collect() 	
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+>>> evens.value  
+10  # because it has the same accumulator as before , its value was 5 then 5 added so 10 
+evens=sc.accumulator(0) # reset evens accumulator to 0 
+numbers.map(inc_and_reprot)	
+PythonRDD[24] at RDD at PythonRDD.scala:43
+
+>>> evens.value # since even has not run it won't run 
+0
+numbers.map(inc_and_reprot).collect() 	
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+>>> evens.value  
+5
+
+
+Note::
+Accumulators are variables that are used for aggregating information across the executors. For example, this information can pertain to data or API diagnosis like how many records are corrupted or how many times a particular library API was called.
+
+detailed explanation for accumulators:https://www.edureka.co/blog/spark-accumulators-explained
+
+When using accumulators there are some caveats that we as programmers need to be aware of,
+
+    1.Computations inside transformations are evaluated lazily, so unless an action happens on an RDD the transformationsare not executed. As a result of this, accumulators used inside functions like map() or filter() wont get executed unless some action happen on the RDD.
+    
+    2.Spark guarantees to update accumulators inside actionsonly once. So even if a task is restarted and the lineage is recomputed, the accumulators will be updated only once.
+
+    3.Spark does not guarantee this for transformations. So if a task is restarted and the lineage is recomputed, there are chances of undesirable side effects when the accumulators will be updated more than once.
+
+
+----Using Custom Accumulators---------
+ids=sc.parallelize(xrange(20))
+ids.distinct().collect()
+[0, 8, 4, 12, 16, 1, 17, 13, 5, 9, 18, 2, 14, 10, 6, 11, 19, 3, 15, 7]
+Now we have to return this set as a result from a job 
+Lets do it using custom Accumulators 
+from pyspark import AccumulatorParam 
+class setAccumulatorParam(AccumulatorParam):
+	def zero(self,initialvalue):
+		s=set()
+		s.add(initialvalue)
+		return s 
+	def addInPlace(self,v1,v2):
+		return v1.union(v2)
+		
+ids_seen=sc.accumulator(None,setAccumulatorParam())	
+
+def inc_and_note(x):
+	global ids_seen
+	ids_seen+=x
+	return x+1
+
+ids.map(inc_and_note).collect()	
+we not going to call as we get exception as we only define the class in the repl so 
+when pyspark tries to use pickle it sends the accumulator to all of the executors 
+its not going to work because when pickle tries to find that class there is no file to load from 
+
+
+----Partitions -------
+when you load a dataset the data is distributed across all its processing nodes 
+you can use the glom() command to see the different partitions are 
+rdd=sc.parallelize(xrange(20),numSlices=3)
+rdd.glom().collect()
+[[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17, 18, 19]]
+A large dataset it will run out of memory 
+parallelize distribute data evenly even tough it uses hash or ordered partitioner 
+
+a.join(b).reduceByKey(...) # a,b are 2 RDDs
+# here there is one shuffle when a and b are joined ,reduce already see we are already partitioned 
+by key  
+a.join(b).map(...).reduceByKey(...)
+looks similar to above but there is a small difference 
+1st there is a shuffle then we map the tranformation across the RDDs then we reduceByKey
+join causes a shuffle and 2nd one is map looses the shuffle info . which makes the partition 
+informatio incorrect 
+
+Loading a csv file
+----------
+def load_record(line):
+	input=StringIO.StringIO(line)
+	reader=csv.DictReader(input,fieldnames=["id","name","age","NumFriends"])
+	return reader.next()
+
+input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv").map(load_record)
+
+
+Loading CSV in full in Python
+If there are embedded newlines in fields, we will need to load each file in full and parse the entire segment
+
+def loadRecords(fileNameContents):
+	input=StringIO.StringIO(fileNameContents[1])
+	reader=csv.DictReader(input,fieldnames=["id","name","age","NumFriends"])
+	return reader 
+fullFileData = sc.wholeTextFiles("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv").flatMap(loadRecords)
+
+fileNameContents[0] : gives header i.e 
+[{'NumFriends': None, 'age': None, 'id': 'file:/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv', 'name': None}]
+fileNameContents[1] : gives result 
+fileNameContents[2] : gives index out of range  
+	
+ Writing/saving CSV in Python
+
+def writeRecords(records):
+	output=StringIO.StringIO()
+ 	writer=csv.DictWriter(output,fieldnames=["id","name","age","NumFriends"])
+ 	for record in records:
+ 		writer.writerow(record)
+ 	return [output.getvalue()]	
+
+fullFileData.mapPartitions(writeRecords).saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res") 	
+fullFileData.saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res") 
+
+saving a Sequence File
+-----------
+input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/fake_friends.csv").map(load_record)
+input.map(lambda x:(None,x)).saveAsSequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res") 
+
+reading a sequence fle 	
+readData=sc.sequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res")	
+readData.collect()
+
+read data from sequence files with key
+readData = sc.sequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res", "org.apache.hadoop.io.IntWritable", "org.apache.hadoop.io.Text")
+
+for rec in readData.collect():
+	print(rec)
+
+Sequence files generated by Hive for some table. Let’s see how we can deal with such files in Spark.
+
+CREATE TABLE iTest.states_raw
+(
+   name STRING,
+   code STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' STORED AS TEXTFILE; 
+  
+hadoop fs -copyFromLocal '/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/states.txt' '/user/hive/warehouse/sample'  
+LOAD DATA  INPATH '/user/data/states.txt' INTO TABLE iTest.states_raw;
+OR copy from your local desktop to hive 
+LOAD DATA  LOCAL INPATH '/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/states.txt' INTO TABLE iTest.states_raw;
+
+CREATE TABLE states_seq
+(
+   code STRING,
+   name STRING
+)
+STORED AS SEQUENCEFILE
+LOCATION '/user/hive/iTest/states_seq';
+
+INSERT INTO TABLE states_seq SELECT  name ,code FROM states_raw;
+
+seq file created in 
+hadoop fs -ls /user/hive/iTest/states_seq
+-rwxr-xr-x   1 pbishwal supergroup       1033 2017-04-15 23:11 /user/hive/iTest/states_seq/000000_0
+
+
+file=sc.sequenceFile("hdfs://localhost:54310/user/hive/iTest/states_seq")
+>>> file.collect()
+[(bytearray(b''), u'Andaman and Nicobar Islands\x01AN'), (bytearray(b''), u'Andhra Pradesh\x01AP'), (bytearray(b''), u'Arunachal Pradesh\x01AR')]
+
+Before you can perform any actions, you have to convert BytesWritable:
+file.map( lambda x : (unicode(x[0]),str(x[0]), str(x[1]))).collect()
+[(u'', '', 'Andaman and Nicobar Islands\x01AN'), (u'', '', 'Andhra Pradesh\x01AP'), (u'', '', 'Arunachal Pradesh\x01AR'), (u'', '', 'Assam\x01AS'), (u'', '', 'Bihar\x01BR') ]
+OR 
+>>> file.map( lambda x : (str(x[0]), str(x[1]))).collect()
+[('', 'Andaman and Nicobar Islands\x01AN'), ('', 'Andhra Pradesh\x01AP'), ('', 'Arunachal Pradesh\x01AR'), ('', 'Assam\x01AS'), 
+('', 'Bihar\x01BR')]
+OR
+file.map( lambda x : (bytes(x[0]), bytes(x[1]))).collect()
+[('', 'Andaman and Nicobar Islands\x01AN'), ('', 'Andhra Pradesh\x01AP'), ('', 'Arunachal Pradesh\x01AR'), ('', 'Assam\x01AS'), ('', 'Bihar\x01BR'), ('', 'Chandigarh\x01CH')]
+
+You can see that the key is empty byte array (NULL value), and value contains concatenated values for all columns.
+Let’s get rid of NULL key and transform the SequenceFile RDD to a more meaningful key-value pairs:
+
+file.map(lambda x : x[1].split('\01')).map(lambda x: (x[0], x[1])).collect()
+>>> file.map(lambda x : x[1].split('\01')).map(lambda x: (x[0], x[1])).collect()
+[(u'Andaman and Nicobar Islands', u'AN'), (u'Andhra Pradesh', u'AP'), (u'Arunachal Pradesh', u'AR'), (u'Assam', u'AS'), (u'Bihar', u'BR'), (u'Chandigarh', u'CH')]
+
+Once you transformed SequenceFile RDD you can use its data in reduce and group by operations as well as map-side joins.
+save the seq file data 
+saveData=file.map(lambda x : x[1].split('\01')).map(lambda x: (x[0], x[1]))
+saveData.saveAsSequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res") 
+
+Object Files
+---------
+
+
+Structured Data with Spark SQL
+--------------------------
+By structured data, we mean data that has a schema—that is, a consistent set of fields across data records.
+We give Spark SQL a SQL query to run on the data source (selecting some fields or a function of the fields), and we get back an RDD of Row objects, one per record.
+
+Apache Hive
+-------
+To connect Spark SQL to an existing Hive installation, you need to provide a Hive configuration. 
+You do so by copying your hive-site.xml file to Spark’s ./conf/ direc‐ tory. 
+Once you have done this, you create a HiveContext object, which is the entry point to Spark SQL, and you can write Hive Query Language (HQL) queries against your tables to get data back as RDDs of rows.
+
+copy command to do it :
+cp /usr/local/Cellar/hive/2.1.0/libexec/conf/hive-site.xml /Users/pbishwal/spark-2.0.2-bin-hadoop2.7/conf
+
+if you don't copy then while firing the select command you will get :ObjectStore: Failed to get database in sparksql 
+also copy mysql-connector-java-5.1.41-bin.jar path to spark env.sh i.e  
+
+mysql-connector-java-5.1.41-bin.jar is present in :
+/usr/local/Cellar/hive/2.1.0/libexec/lib/mysql-connector-java-5.1.41-bin.jar
+add below in spark env.sh 
+export SPARK_CLASSPATH="/usr/local/Cellar/hive/2.1.0/libexec/lib/mysql-connector-java-5.1.41-bin.jar"
+if you don't do this you will get org.datanucleus.store.rdbms.connectionpool.DatastoreDriverNotFoundException error 
+
+from pyspark.sql import HiveContext
+hiveCtx = HiveContext(sc)
+rows = hiveCtx.sql("select name,code from iTest.states_raw")
+firstRow = rows.first()
+print firstRow.name
+Andaman and Nicobar Islands
+
+>>> rows.collect()
+17/04/16 00:24:12 WARN LazyStruct: Extra bytes detected at the end of the row! Ignoring similar problems.
+[Row(name=u'Andaman and Nicobar Islands', code=u'AN'), Row(name=u'Andhra Pradesh', code=u'AP'), Row(name=u'Arunachal Pradesh', code=u'AR'), Row(name=u'Assam', code=u'AS') ]
+
+JSON
+----
+from pyspark.sql import HiveContext
+hiveCtx = HiveContext(sc)
+
+baby=hiveCtx.read.json("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json")
+baby.registerTempTable("baby")
+results = hiveCtx.sql("SELECT * FROM baby")
+print results.show()
+note : to see the records in proper format the json should be in single line as e.g 
+{"Year": "2013","First Name": "DAVID","County": "KINGS","Sex": "M","Count": "272"},
+
+sc.setLogLevel("ERROR") # this is to supress the warnings in pyspark shell 
+
+#copying to HDFS (using linux command line)
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/departments.json /user/hive/warehouse/sample
+from pyspark.sql import HiveContext
+from pyspark import SQLContext
+sqlContext = SQLContext(sc)
+departmentsJson = sqlContext.read.json("hdfs://localhost:54310/user/hive/warehouse/sample/departments.json")
+departmentsJson.registerTempTable("departmentsTable")
+departmentsData = sqlContext.sql("select * from departmentsTable")
+for rec in departmentsData.collect():
+	print(rec)
+
+OR 
+print departmentsJson.show()
+ 
+# departmentsJson = sqlContext.jsonFile("hdfs://localhost:54310/user/hive/warehouse/sample/departments.json")
+# gives AttributeError: 'SQLContext' object has no attribute 'jsonFile'  hence sqlContext.read.json used 
+
+Databases
+--------
+def createConnection() = { 
+	Class.forName("com.mysql.jdbc.Driver").newInstance(); 
+	DriverManager.getConnection("jdbc:mysql://localhost/metastore?user=iTest");
+}
+def extractValues(r: ResultSet) = { 
+	(r.getInt(1), r.getString(2))
+}
+
+val data = new JdbcRDD(sc,createConnection, "SELECT * FROM iTest.states_raw WHERE code='AP' , lowerBound = 1, upperBound = 3, numPartitions = 2, mapRow = extractValues)
+println(data.collect().toList)
+
+
+
+Advanced Spark Programming:
+----------------------
+Shared Variables : Accumulators and BroadCast Variable 
+
+Accumulators:
+--------
+
+When we normally pass functions to Spark, such as a map() function or a condition for filter(), they can use variables defined 
+outside them in the driver program, but each task running on the cluster gets a new copy of each variable, 
+and updates from these copies are not propagated back to the driver.
+
+accumulators, provides a simple syntax for aggregating values from worker nodes back to the driver program. 
+
+Assume states.txt has few blank lines present in path:
+'/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/states.txt' 
+
+file=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/states.txt")
+# create an accumulator initialised to 0 .
+blankLines= sc.accumulator(0)
+
+def extraCallSigns(line):
+	global blankLines
+	if (line == ""):
+		blankLines+=1
+	return line.split()	
+
+callSigns=file.flatMap(extraCallSigns)	
+callSigns.saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/output_res" + "/callsigns")
+print "Blank lines: %d" % blankLines.value # accumulator is called using its value property 
+
+# note : if you file doesn't have blank lines then you may get error NoneType Object is not iterable 
+# Note that we will see the right count only after we run the saveAsTextFile() action, because the transformation above it, map(), is lazy, so the side-effect incrementing of the accumulator will happen only when the lazy map() transformation is forced to occur by the saveAsTextFile() action.
+
+
+To summarize, accumulators work as follows:
+• We create them in the driver by calling the SparkContext.accumulator(initial Value) method, which produces an accumulator 
+	holding an initial value. The return type is an org.apache.spark.Accumulator[T] object, where T is the type of initialValue.
+• Worker code in Spark closures can add to the accumulator with its += method (or add in Java).
+• The driver program can call the value property on the accumulator to access its value (or call value() and setValue() in Java).
+
+
+Note that tasks on worker nodes cannot access the accumulator’s value()—from the point of view of these tasks, accumulators are write-only variables.
+
+Accumulators and Fault Tolerance
+Spark automatically deals with failed or slow machines by re-executing failed or slow tasks.
+
+Broadcast Variables
+-------------
+It allows the program to efficiently send a large, read-only value to all the worker nodes for use in one or more Spark operations.
+
+The process of using broadcast variables is simple:
+1. CreateaBroadcast[T]bycallingSparkContext.broadcastonanobjectoftype T. Any type works as long as it is also Serializable.
+2. Access its value with the value property (or value() method in Java).
+3. The variable will be sent to each node only once, and should be treated as read- only (updates will not be propagated to other nodes).
+
+
+

@@ -1,0 +1,530 @@
+Spark is a general computation engine that makes it easy to run jobs on more than one computer .
+Why is that important ? What problem does it solve ? 
+-Data size are increasing much faster than processor speed ,even increasing more than the number of 
+ cores . 2 options to solve it .
+ A. Spend more money on supercomputer to solve the problem ,cost of computer increases as data size grows 
+ B. Buy commodity hardware and run job across them 
+ Spark attempts to address the problems in hadoop .
+ Keeps data in memory and does the processing 
+ Driver executer architecutre 
+ 
+ ----
+ RDD 
+ In spark all data stored in RDD 
+ parallelise command is called to store data 
+ >>> rdd=sc.parallelize([1,2,3,4,5])
+>>> rdd
+ParallelCollectionRDD[0] at parallelize at PythonRDD.scala:423
+
+When python has already data type like list,tuple then why do we bother about other data type like RDD?
+- When have more data to fill it in the hard drive of your computer ,you can spread it to multiple 
+ computers but the chances of failure are also there because one or more computer may fail at any 
+ point of time .
+ Assume 1000 hrs for one failure ,on average 
+ i.e 1000*1/24 =41.6666
+	41.67 Days of computation per failure ,on an average 
+	Now assume 200 computers all running ,with the same mean time to failure 
+	(1/1000)*200*(24/1) =4.8
+	4.8 failures per day once you have 200 computers running 
+So, when you have huge cluster you can do more computation .
+This is where RDD (Resilient - fault tolerant , Distributed-Mulitple computers ,DAtaset)	
+	
+>>> doubled=rdd.map(lambda x:x*2)
+lambda  syntax above, it is a shorthand way to define functions inline in Python
+>>> doubled
+PythonRDD[1] at RDD at PythonRDD.scala:43
+>>> doubled.toDebugString() # to check from where it is created 
+'(4) PythonRDD[1] at RDD at PythonRDD.scala:43 []\n |  ParallelCollectionRDD[0] at parallelize at PythonRDD.scala:423 []'
+##doubled is created from rdd which you can see from ParallelCollectionRDD[0]
+>>>	
+
+----Loading Data from text file into spark----
+>>> text=sc.textFile("Audio Standardization Sentences.txt")
+16/12/19 14:50:13 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 127.4 KB, free 127.4 KB)
+16/12/19 14:50:13 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 13.9 KB, free 141.3 KB)
+16/12/19 14:50:13 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:59311 (size: 13.9 KB, free: 511.1 MB)
+16/12/19 14:50:13 INFO SparkContext: Created broadcast 0 from textFile at NativeMethodAccessorImpl.java:-2
+
+# Here text is RDD 
+>>> text
+Audio Standardization Sentences.txt MapPartitionsRDD[3] at textFile at NativeMethodAccessorImpl.java:-2
+>>> text.collect()
+16/12/19 14:52:03 INFO FileInputFormat: Total input paths to process : 1
+...
+16/12/19 14:52:03 INFO DAGScheduler: Job 0 finished: collect at <stdin>:1, took 0.437914 s
+[u'Oak is strong and also gives shade.', u'Cats and dogs each hate the other.', u'The pipe began to rust while new.', u"Open the crat
+
+-- It is important to do partitions because the no. of parallelisism is the number of partitions 
+# Here you have defined the minPartitions to be 1 , you can define more 
+>>> text=sc.textFile("Audio Standardization Sentences.txt",minPartitions=1)
+16/12/19 14:54:43 INFO MemoryStore: Block broadcast_2 stored as values in memory (estimated size 61.8 KB, free 208.0 KB)
+16/12/19 14:54:43 INFO MemoryStore: Block broadcast_2_piece0 stored as bytes in memory (estimated size 19.3 KB, free 227.3 KB)
+16/12/19 14:54:43 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on localhost:59311 (size: 19.3 KB, free: 511.1 MB)
+16/12/19 14:54:43 INFO SparkContext: Created broadcast 2 from textFile at NativeMethodAccessorImpl.java:-2
+
+# second option is hadnling unicode , you can provide it in above command else it defaults to true
+#A file read from HDFS will generally have one partitions for each block of HDFS 
+
+----Actions in Spark-------
+
+RDD is noun we need verbs to get the actions done . there are 2 verbs to do it 
+i.e Actions and Transformation 
+>>> numbers.sum()
+190
+>>>numbers.count()
+20
+#save numbers to disk
+numbers.saveAsTextFile("_our_numbers.txt")
+# this will create a folder _our_numbers.txt in the location you have logged in to spark 
+  and when you do cat part-0000 it will display the contents 
+
+#If a function takes an RDD and returns an RDD then its a transfromation ,
+else if it takes an RDD and returns a  result  then it is action like numbers.count() 
+
+----Transformations in Spark----
+numbers=sc.parallelize(xrange(20))
+small_numbers=sc.parallelize(xrange(5))
+# to see the ancestory of the RDD
+>>> numbers.toDebugString()
+'(4) PythonRDD[2] at RDD at PythonRDD.scala:43 []\n |  ParallelCollectionRDD[0] at parallelize at PythonRDD.scala:423 []'
+
+>>> small_numbers.toDebugString()
+'(4) PythonRDD[3] at RDD at PythonRDD.scala:43 []\n |  ParallelCollectionRDD[1] at parallelize at PythonRDD.scala:423 []'
+
+# now lets combine these 2 RDD 
+combine=numbers.union(small_numbers)
+>>> combine.toDebugString()
+'(8) UnionRDD[4] at union at NativeMethodAccessorImpl.java:-2 []\n |  PythonRDD[2] at RDD at PythonRDD.scala:43 []\n |  ParallelCollectionRDD[0] at parallelize at PythonRDD.scala:423 []\n |  PythonRDD[3] at RDD at PythonRDD.scala:43 []\n |  
+	ParallelCollectionRDD[1] at parallelize at PythonRDD.scala:423 []'
+
+	----Persisting Data ----
+input=sc.parallelize(xrange(1000))
+>>> result=input.map(lambda x:x**5)
+16/12/19 16:03:39 INFO ContextCleaner: Cleaned accumulator 12
+16/12/19 16:03:39 INFO BlockManagerInfo: Removed broadcast_12_piece0 on localhost:59311 in memory (size: 2.3 KB, free: 511.1 MB)
+
+result.saveAsTextFile("_first-output.txt")
+# this will create a folder _first-output.txt in the location you have logged in to spark 
+  and when you do cat part-0000 it will display the contents 
+  
+>>> result.map(lambda x:"number:"+x).saveAsTextFile("_second-output.txt")
+this gives error : TypeError: cannot concatenate 'str' and 'long' objects
+
+so to resolve this -- need to check   
+
+You can persist the data in memory or in disk as :
+>>>
+>>> input.persist(StorageLevel.MEMORY_ONLY)
+PythonRDD[25] at collect at <stdin>:1
+
+# to see whether it is persisting in memory if is_cached is True then it is in memory 
+>>> input.is_cached
+True
+# command to unpersist
+>>> input.unpersist()
+16/12/19 16:21:26 INFO PythonRDD: Removing RDD 25 from persistence list
+16/12/19 16:21:26 INFO BlockManager: Removing RDD 25
+PythonRDD[25] at collect at <stdin>:1
+# After unpersisting the is_cached returns false 
+>>> input.is_cached
+	False
+---- Map in Spark---- 
+map in python :
+ map(function, sequence) calls function(item) for each of the sequence’s items 
+  and returns a list of the return values.
+e.g 
+
+>>> def cube(x): return x*x*x
+...
+>>> map(cube, range(1, 11))
+[1, 8, 27, 64, 125, 216, 343, 512, 729, 1000]
+
+The map is same as in map-reduce program 
+start with a list then call map on that point 
+numbers=sc.parallelize(xrange(20))
+numbers.map(lambda x:x *10).collect()
+[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190]
+# note: map is required when you need one output for each input , here input are numbers 
+  1 through 20 and output is 10 times the input passed 
+  
+ # one imp task of map is to have some key value pair  
+  map has also one option called partition 
+
+----Filter in Spark---- 
+ filter in python :
+	filter(function,list)
+ e.g fib = [0,1,1,2,3,5,8,13,21,34,55] # list of numbers
+	 result = filter(lambda x: x % 2 == 0, fib) # 1st argument is function which returns a boolean
+	  #value when no. is even from the list passed 
+	  print result
+	 [0, 2, 8, 34] 
+ 
+Filter transfromation allows you to store only those RDD you want 
+its like a where clause in sql 
+numbers=sc.parallelize(xrange(20)) 
+# now you want to see only the even numbers 
+>>> def is_even(x):
+...     return (x%2)==0 # retuns 1 when number is even 
+...
+
+>>>numbers.filter(is_even).collect()
+[0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+
+# note: is_even function returns x%2==0 which is true when value is even and returns 1 
+which evaluates to True against odd number which returns 0 and is false  
+
+>>> bool(True)
+True
+>>> bool(true)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'true' is not defined
+>>> bool(False)
+False
+
+----FlatMap in Spark----
+
+FlatMap transfromation is useful when you want to map each element of source RDD to 0 or 1 
+or many elements in output RDD.
+whereas map takes one input of Source RDD and maps to one output RDD
+
+text=sc.textFile("Audio Standardization Sentences.txt")
+text.collect()
+[u'Oak is strong and also gives shade.', 
+  u'Cats and dogs each hate the other.', 
+  u'The pipe began to rust while new.',...]
+  
+# now i want to see total number of words in the text file 
+words=text.flatMap(lambda x:x.split(" ")) # splits words on spaces 
+words.collect()
+--[u'Oak', u'is', u'strong'....]  
+# the whole sentences in the text file is a single list in flatMap 
+>>> words.count()
+73
+
+if you use map instead of flat map then it will produce each sentence with  a list of words 
+e.g 
+text.map(lambda x:x.split(" ")).collect() # splits words on spaces 
+[ [u'Oak', u'is', u'strong', u'and', u'also', u'gives', u'shade.'], # this sentence is a list of words  
+ [u'Cats', u'and', u'dogs', u'each', u'hate', u'the', u'other.'],
+ ....]
+ 
+ # map output is a list of lists 
+ ----Map Partitions in RDD ----
+ Map transfromation works on elements of the RDD 
+ Map Partitions transfromation works on the partitions of the RDD . 
+ Parition is one chunk of data in RDD 
+
+text=sc.textFile("Audio Standardization Sentences.txt")
+words=text.flatMap(lambda x:x.split(" ")) # splits words on spaces 
+
+# this function counts the words occurence in text RDD 
+def count_words(iterator):
+     counts={}
+     for w in iterator:
+             if w in counts:
+                     counts[w]+=1
+             else :
+                     counts[w]=1
+     yield counts
+	 
+>>> word_counts=words.mapPartitions(count_words) # words is rdd ,word_counts is another rdd 
+>>> word_counts.collect()	 
+[{u'and': 2, u'new.': 1, u"don't": 1, u'is': 1, u'Oak': 1,....]
+
+# MapPartitions also helps to setup one database connection once per partition instead of 
+once per element 
+for e.g 
+def faster_lookup(iterator):
+	db=make_db_connection()
+	for id in iterator:
+		yield db.lookup(id)
+		
+# what happens here is iterator contains all of the values in the partition of RDD 
+so for each id in iterator we will yield db.lookup id 		
+	
+----Map Partitionswith index transfromation  in RDD ----
+It doesn't do much more than MapPartitions ,it provides the index of the partition 
+Anytime you want to do externally with data ,it helps to differentiate with data coming to externally
+for e.g:
+pseduo code : 
+def store(index,iterator):
+	db=make_db_connection()
+	for id in iterator:
+		yield db.store(id,shard=index)
+
+----Sampling in Spark----
+Sometimes the best way to process the big data set is making them small and process it .
+Sampling is one way to make big data sets small .
+Sampling is useful when you have lots of data and it is relatively homogenous .
+Any calculations on the results are often estimates as we do processing on a few data set from larger
+data=sc.parallelize(xrange(1000))
+data.count()
+1000
+data.sample(False,0.1).count()   # cutting the data to 1/10th of its previous size 
+ 87  # output is random no.
+ # False means sampling without replacement means you can pull the item from source set more 
+   than once ,without replacement means you will never get double
+ # 2nd argument is the fraction ,sampling without replacement the fraction should be between 0 &1 exclusive
+ 
+Sampling WITH  replacement is often used for statistical boot straping 
+There is also an optional seed argument for the sample method , sampling happens randomly 
+so ,if you want others to repeat your process you need to provide the seed for random number generator
+sharing the seed means random process will turn out same everytime .
+
+-----Union in Spark-------
+
+combine 2 RDDs
+rdd1=sc.parallelize(xrange(5))
+rdd2=sc.parallelize(xrange(5,10))
+rdd2.collect()
+[5, 6, 7, 8, 9]
+rdd1.union(rdd2).collect()
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+with union you can pull data from several places 
+
+----intersection in Spark----
+rdd3=sc.parallelize([1,1,2,3,4,5])
+rdd4=sc.parallelize([1,1,4,6])
+rdd3.intersection(rdd4).collect()
+[1, 4] # internally spark does a reduce and supress the duplicates 
+
+----Duplicates in spark----
+drops duplicates from rdd 
+rdd1=sc.parallelize(["a","b"]).cartesian(sc.parallelize(range(100)))
+rdd1.collect() # a 0-99 , b 0-99
+[('a', 0), ('a', 1), ('a', 2), ('a', 3), ('a', 4), ('a', 5), ('a', 6), ('a', 7), ('a', 8), ('a', 9), ('a', 10), ('a', 11), ('a', 12), ('a', 13), ('a', 14), ('a
+'b', 38), ('b', 39), ('b', 40), ('b', 41), ('b', 42), ('b', 43), ('b', 44), ('b', 45), ('b', 46), ('b', 47), ('b', 48), ('b', 49), ('b', 50), ('b', 51), ('b',
+
+first=rdd1.map(lambda x:x[0])  
+first.collect() # display a 99 times , b 99 times 
+first.distinct().collect()
+['a','b']
+# distinct is slower as it does a reduce underneath 
+
+----Cartesian in Spark----
+does cartesian product 
+rdd1=sc.parallelize(["a","b"]).cartesian(sc.parallelize(range(100)))
+
+>>> icecream=range(5)
+>>> icecream
+[0, 1, 2, 3, 4]
+>>> cookies=range(7)
+>>> cookies
+[0, 1, 2, 3, 4, 5, 6]
+
+[(a,b) for a in icecream for b in cookies]
+[(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5)
+
+icecream=sc.parallelize(range(5))
+cookies=sc.parallelize(range(5))
+combined=icecream.cartesian(cookies)
+combined.collect()
+[(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (3, 0), (4, 0), (3, 1), (4, 1), (3, 2)
+
+----Pipe in Spark----
+Pipe takes each partition of data and pipes it through command line tool you specify 
+output from the command is the resultant rdd 
+
+numbers=sc.parallelize(xrange(11))
+numbers.pipe("grep 1").collect() # grep operates on string and pipe passes all its data 
+[u'1', u'10']  # 1 occurs in 1,10
+
+pipe can operate over map,flatMap ...
+rdd=sc.parallelize(["b,b","c,c,c","a"])
+# now lets capitalize all in source rdd 
+[u'B,B', u'C,C,C', u'A']
+
+>>> rdd.pipe("grep a").collect()
+[u'a']
+
+>>> rdd.pipe("tr -s ',' '[\n]'").collect()
+
+----coalesce in spark----
+spark doesn't store data in one place rather it stores data in chunks called partitions in many places
+coalesce function reduce the number of partition in efficient way by combining partiions that are already 
+in same executors 
+
+rdd=sc.parallelize(xrange(1000),numSlices=100) # 100 partitions defined 
+rdd2=rdd.coalesce(10) # 10 parttions , we reduced rdd to 10 partition
+
+Number of partition is the upper limit for parallelisism ,u can't have 5 partitions working on 
+3 partitions ,recommended is 2-4 partitions 
+
+----Repartition in Spark-------
+
+Spark places your rdd in each of the executors in the cluster .Spark decides partitioner to 
+decide which data should end up in each node . A good partitioner sets same amount of data 
+in each node 
+Repartition does let you set the target no. of partition 
+number=sc.parallelize(xrange(1000),numSlices=100)
+number.repartition(100)
+MapPartitionsRDD[74] at repartition at NativeMethodAccessorImpl.java:-2
+
+----RepartitionAndSortWithinPartitions in Spark-------
+Repartition- changing the no. of pieces your RDD is broken into,moves data around the cluster 
+ Operates in key value pairs 
+
+pairs=sc.parallelize([[1,1],[1,2],[2,3],[3,3] ]) 
+pairs.repartitionAndSortWithinPartitions(2).glom().collect()
+output -[[(2, 3)], [(1, 1), (1, 2), (3, 3)]] 
+
+[(2, 3)] - list of one element list 
+[(1, 1), (1, 2), (3, 3)]- list of 3 element list 
+the above 2 list are the partition that we asked to make in the above command then
+within those partitions things are sorted 
+
+pairs.repartitionAndSortWithinPartitions(2,partitionFunc=lambda x:x==1).glom().collect()
+# tells how to assign items to partiions , here we say either of key ==1 
+output 
+[[(2, 3), (3, 3)], [(1, 1), (1, 2)]]
+1st partition -[(2, 3), (3, 3)]
+2nd partition -[(1, 1), (1, 2)]
+
+
+
+
+
+ glom()-take all of the elements within a partition and put them into a list and then return	
+		an RDD of those list 
+		
+
+
+JSON
+ ----
+ Loading the data as a text file and then parsing the JSON data is an approach that we can use in all of the supported languages. This works assuming that you have one JSON record per row; if you have multiline JSON files, you will instead have to load the whole file and then parse each file. 
+ 
+  simple python 
+  vvimp:
+  json.dumps takes an object and produces a string 
+  but load would take a file-like object, read the data from that object, and use that string to create an object
+data = {'name' : 'ACME','shares' : 100,'price' : 542.23}
+>>> json_str=json.dumps(data)
+>>> json_str
+'{"price": 542.23, "name": "ACME", "shares": 100}'
+
+>>> filename="/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json"
+>>> with open(filename, "r") as f:
+...     data = json.loads(f.read())
+...     print data
+... 
+{u'babby': [{u'County': u'KINGS', u'First Name': u'DAVID', u'Sex': u'M', u'Count': u'272', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'268', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'MOSHE', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'ETHAN', u'Sex': u'M', u'Count': u'216', u'Year': u'2013'}]}
+>>> json_file = open("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json","r")
+>>> json_decoded = json.load(json_file) 
+# if you use json.dump(json_file) the you get error baby.json', mode 'r' at 0x107e14270> is not JSON serializable
+>>> print json_decoded
+{u'babby': [{u'County': u'KINGS', u'First Name': u'DAVID', u'Sex': u'M', u'Count': u'272', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'268', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'JAYDEN', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'KINGS', u'First Name': u'MOSHE', u'Sex': u'M', u'Count': u'219', u'Year': u'2013'}, {u'County': u'QUEENS', u'First Name': u'ETHAN', u'Sex': u'M', u'Count': u'216', u'Year': u'2013'}]}
+
+ using pyspark 
+ >>> input=sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/baby.json")
+>>> data = input.map(lambda x: json.dumps(x)) # using json.load gives No JSON object could be decoded error  
+>>> data.collect()
+['" "', '"{\\"babby\\": ["', '" {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"DAVID\\","', '" \\"County\\": \\"KINGS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"272\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"JAYDEN\\","', '" \\"County\\": \\"KINGS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"268\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"JAYDEN\\","', '" \\"County\\": \\"QUEENS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"219\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"MOSHE\\","', '" \\"County\\": \\"KINGS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"219\\""', '"}, {"', '" \\"Year\\": \\"2013\\","', '" \\"First Name\\": \\"ETHAN\\","', '" \\"County\\": \\"QUEENS\\","', '" \\"Sex\\": \\"M\\","', '" \\"Count\\": \\"216\\""', '"}"', '"]}"']
+
+Datasets and DataFrames
+
+spark = SparkSession.builder.appName("Python Spark SQL basic example").config("spark.some.config.option", "some-value").getOrCreate()
+df = spark.read.json("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/people.json")
+
+>>> df.select("name").show()
++-------+
+|   name|
++-------+
+|Michael|
+|   Andy|
+| Justin|
++-------+
+
+>>> df.show()
++----+-------+
+| age|   name|
++----+-------+
+|null|Michael|
+|  30|   Andy|
+|  19| Justin|
++----+-------+
+
+>>> df.printSchema()
+root
+ |-- age: long (nullable = true)
+ |-- name: string (nullable = true)
+
+
+# Select everybody, but increment the age by 1
+>>> df.select(df['name'], df['age'] + 1).show()
+
++-------+---------+
+|   name|(age + 1)|
++-------+---------+
+|Michael|     null|
+|   Andy|       31|
+| Justin|       20|
++-------+---------+
+
+
+# Select people older than 21
+>>> df.filter(df['age'] > 21).show()
+
++---+----+
+|age|name|
++---+----+
+| 30|Andy|
++---+----+
+
+# Register the DataFrame as a SQL temporary view
+df.createOrReplaceTempView("people")
+sqlDF = spark.sql("SELECT * FROM people")
+>>> sqlDF.show()
++----+-------+
+| age|   name|
++----+-------+
+|null|Michael|
+|  30|   Andy|
+|  19| Justin|
++----+-------+
+
+# Register the DataFrame as a global temporary view
+df.createGlobalTempView("people")
+--check the error 
+AttributeError: 'DataFrame' object has no attribute 'createGlobalTempView'
+
+spark.sql("SELECT * FROM global_temp.people").show()
+
+ Global temporary view is cross-session
+spark.newSession().sql("SELECT * FROM global_temp.people").show()
+
+Inferring the Schema Using Reflection
+========================================
+
+Spark SQL can convert an RDD of Row objects to a DataFrame, inferring the datatypes. Rows are constructed by passing a list of key/value pairs as kwargs to the Row class. The keys of this list define the column names of the table, and the types are inferred by sampling the whole dataset, similar to the inference that is performed on JSON files.
+
+from pyspark.sql import Row
+sc = spark.sparkContext
+Note
+# Row can be used to create a row object by using named arguments, the fields will be sorted by names.
+
+# Load a text file and convert each line to a Row.
+lines = sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/Taming_BigData_WithSpark/people.txt")
+parts = lines.map(lambda l: l.split(","))
+people = parts.map(lambda p: Row(name=p[0], age=int(p[1])))
+
+# Infer the schema, and register the DataFrame as a table.
+schemaPeople = spark.createDataFrame(people)
+schemaPeople.createOrReplaceTempView("people")
+
+# SQL can be run over DataFrames that have been registered as a table.
+teenagers = spark.sql("SELECT name FROM people WHERE age >= 13 AND age <= 19")
+
+# The results of SQL queries are Dataframe objects.
+# rdd returns the content as an :class:`pyspark.RDD` of :class:`Row`.
+teenNames = teenagers.rdd.map(lambda p: "Name: " + p.name).collect()
+>>> for name in teenNames:
+...     print(name)
+... 
+Name: Justin
+
+
+
+
+

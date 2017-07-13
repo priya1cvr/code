@@ -10,6 +10,7 @@ import java.util.Comparator;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.Partitioner;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -89,7 +90,8 @@ public class AirlineDataSampler {
 		/*Read in the data*/
 		JavaRDD <String> rdd =sc.textFile(inputPath);
 		
-		/*Process the data*/
+		/* Process the data all in a single statement 
+		 
 		rdd.filter(l->!(l.startsWith("Year"))) //skip the header line
 				//.sample(false,sampledAmount)
 			     //.repartition(20)
@@ -104,6 +106,37 @@ public class AirlineDataSampler {
 						 )
 				 .map(t->((Tuple2<String, String>) t)._2()) //process just the value the 2nd part 
 				 .saveAsTextFile(outputPath);
+		
+		//mapToPair will return the combination of year-Mon-Day as key and rest string as value
+		
+		*/
+		
+		/* Process the data divided into rdd's */
+		
+		JavaPairRDD<String, String> rdd1 =rdd.filter(l->!(l.startsWith("Year")))
+								.mapToPair(l->{
+									 String [] parts =StringUtils.splitPreserveAllTokens(l,",");
+									 String yrMoDd =	parts[0]+","+parts[1]+","+parts[2];
+									 return new Tuple2<String,String>(yrMoDd,l);
+								 });
+		//System.out.println(rdd1.collect());
+		
+		/* rdd1 gives list of key,value pair as return type is String,String . 
+		   mapToPair will return the combination of year-Mon-Day as key and rest string as value
+		[(1987,10,14,1987,10,14,3,741,730,912,849,PS,1451,NA,91,79,NA,23,11,SAN,SFO,447,
+			NA,NA,0,NA,0,NA,NA,NA,NA,NA), () ...]
+		*/
+		JavaPairRDD<String, String> rdd2 =rdd1.repartitionAndSortWithinPartitions(
+				 new CustomPartitioner(noOfPartitions),
+				 new CustomCompartor()
+				 );
+		//rdd2 also gives same result as rdd1 but the records are sorted 
+		
+		JavaRDD<Object> rdd3=rdd2.map(t->((Tuple2<String, String>) t)._2());
+		
+		System.out.println(rdd3.collect());
+		//rdd3 gives the key value pair same as rdd2
 			sc.close();
 	}
 }
+

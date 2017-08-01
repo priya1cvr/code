@@ -1,0 +1,203 @@
+Spark_Project_4
+=================
+dataset :https://github.com/dgadiraju/data
+
+Reading and Writing from Sequence Files and Accumulators
+
+spark = SparkSession.builder.appName("BaseBall Analysis").config("spark.some.config.option", "some-value").getOrCreate()
+-- create a sqlcontext 
+from pyspark.sql import SQLContext
+from pyspark.sql import HiveContext
+from pyspark.sql import Row, functions as F
+from pyspark.sql.functions import  *
+
+products =sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/")
+
+>>>products.persist(StorageLevel.MEMORY_AND_DISK)
+/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/ MapPartitionsRDD[11] at textFile at NativeMethodAccessorImpl.java:-2
+
+MEMORY_AND_DISK	-Store RDD as deserialized Java objects in the JVM. If the RDD does not fit in memory, store the partitions that don't fit on disk, and read them from there when they're needed.
+
+to unpersist 
+>>> products.unpersist()
+/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/ MapPartitionsRDD[11] at textFile at NativeMethodAccessorImpl.java:-2
+
+===in order to read data from seq file we need to store it in seq file
+===seq files works in key value pairs 
+
+products.saveAsSequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq")
+-this code will give error  calling z:org.apache.spark.api.python.PythonRDD.saveAsSequenceFile.
+
+seq file is expectin in key values pairs 
+saving it in local 
+products.map(lambda x:(x.split(',')[0],x)).saveAsSequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq")
+
+scala 
+saveAsSequenceFile
+products.map(rec=>(new IntWritable(rec.split(",")(0).toInt,new Text(rec))).saveAsSequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq",classOf[IntWritable],classOf[Text])
+
+read sequence file scala
+sc.sequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq",classOf[IntWritable],classOf[Text]).map(rec=>rec.tostring()).collect().foreach(println)
+
+part-00000 and part-00001 created which are binary files in local so can't be read directly by cat 
+/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq
+
+to read from sequence file 
+>>> sc.sequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq").first()
+(u'1', u'1,2,Quest Q64 10 FT. x 10 FT. Slant Leg Instant U,,59.98,http://images.acmesports.sports/Quest+Q64+10+FT.+x+10+FT.+Slant+Leg+Instant+Up+Canopy')
+
+get only the key(1st item in key) and get only the values (whole record is value)
+>>> sc.sequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq").first()[0]
+u'1'
+>>> sc.sequenceFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/products/products_seq").first()[1]
+u'1,2,Quest Q64 10 FT. x 10 FT. Slant Leg Instant U,,59.98,http://images.acmesports.sports/Quest+Q64+10+FT.+x+10+FT.+Slant+Leg+Instant+Up+Canopy'
+
+
+
+lets saving it in hadoop 
+
+products.map(lambda x:(x.split(',')[0],x)).saveAsSequenceFile("hdfs://localhost:54310/user/retail_db/products_seq")
+note:products_seq folder shdnt exist prior 
+
+now you can do to see the contents in hadop path  
+hadoop fs -cat /user/retail_db/products_seq/part-00001  
+
+note you can do
+ hadoop fs -cat /user/retail_db/products_seq/part-00001 >>file
+ view file => it will show the contents as below 
+EQ^F^Yorg.apache.hadoop.io.Text^Yorg.apache.hadoop.io.Text^@^@^@^@^@^@^SpW©(oî¼ú ¶y+8j1^@^@^@«^@^@^@^D^C690<8f>¥690,31,Tour Edge XCG7 X-LITE Hybrid/Irons - (Graphit,,599.99,http:...)
+
+The special characters are metadata of key and value 
+
+
+
+===================================
+saveAsHadoopFile -this is also on pairedRDD 
+
+Note: in pyspark the syntax of saveAsNewAPIHadoopFile is 
+RDD.saveAsNewAPIHadoopFile(path, outputFormatClass, keyClass=None, valueClass=None, keyConverter=None, valueConverter=None, conf=None)[source]
+
+
+productsMap=products.map(lambda x:(x.split(',')[0],x)).saveAsNewAPIHadoopFile("hdfs://localhost:54310/user/retail_db/products_hdp","org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat")
+
+only we need to provide the outputFormatClass ,others can be none  
+--"org.apache.hadoop.io.IntWritable","org.apache.hadoop.io.Text",
+
+now you can do hadoop fs -cat /user/retail_db/products_hdp/part-r-00000 
+
+to read newAPIHadoopFile
+syntax is 
+newAPIHadoopFile(path, inputFormatClass, keyClass, valueClass, keyConverter=None, valueConverter=None, conf=None, batchSize=0) i.e
+keyClass – fully qualified classname of key Writable class (e.g. “org.apache.hadoop.io.Text”)
+valueClass – fully qualified classname of value Writable class (e.g. “org.apache.hadoop.io.LongWritable”)
+
+
+>>> sc.newAPIHadoopFile("hdfs://localhost:54310/user/retail_db/products_hdp","org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat","org.apache.hadoop.io.IntWritable","org.apache.hadoop.io.Text").take(2)
+
+[(u'1', u'1,2,Quest Q64 10 FT. x 10 FT. Slant Leg Instant U,,59.98,http://images.acmesports.sports/Quest+Q64+10+FT.+x+10+FT.+Slant+Leg+Instant+Up+Canopy'), (u'2', u"2,2,Under Armour Men's Highlight MC Football Clea,,129.99,http://images.acmesports.sports/Under+Armour+Men%27s+Highlight+MC+Football+Cleat")]
+
+-note while reading it shoud be SequenceFileInputFormat as it is output format in writing 
+
+
+e.g 2
+data = [(1, ""),(1, "a"),(2, "bcdf")]
+
+sc.parallelize(data).saveAsNewAPIHadoopFile("hdfs://localhost:54310/user/retail_db/products_test","org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat","org.apache.hadoop.io.IntWritable","org.apache.hadoop.io.Text")
+
+note: the key is some special character and we can see the value 
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -cat /user/retail_db/products_test/part-r-00003
+SEQ org.apache.hadoop.io.IntWritableorg.apache.hadoop.io.Text??M????m?s??Z?	bcdf
+
+
+		Accumulators
+	   =================
+
+covered earlier check sparkNotes3.txt
+
+	BroadCast Variables
+	======================
+Typically when join happens it happens on the reduce side 
+lets first run traditional join to see the advantage of broadcast variable 
+
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/orders/ /user/retail_db/orders
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/order_items/ /user/retail_db/order_items
+
+
+inputBaseDir ="hdfs://localhost:54310/user/retail_db/"
+orders=sc.textFile(inputBaseDir+"orders")
+
+>>> orders.first()
+u'1,2013-07-25 00:00:00.0,11599,CLOSED'
+
+ordersFiltered=orders.filter(lambda x: (x.split(',')[3]=='COMPLETE') | (x.split(',')[3]=='CLOSED'))
+
+
+taking out the date field 
+ordersMap=ordersFiltered.map(lambda x:(x.split(',')[0],x.split(',')[1]))
+>>> ordersMap.take(1)
+[(u'1', u'2013-07-25 00:00:00.0')]
+
+
+orderItemsMap=sc.textFile(inputBaseDir+"order_items").map(lambda x:(x.split(',')[1],x.split(',')[4]))
+>>> orderItemsMap.take(1)
+[(u'1', u'299.98')]
+
+
+Now lets run the join query 
+ordersJoin=ordersMap.join(orderItemsMap)
+
+>>> ordersJoin.take(1)
+[(u'35540', (u'2014-02-28 00:00:00.0', u'399.98'))]                             
+
+now extract date and orderItems total 
+--ordersJoinMap=ordersJoin.map(lambda (x,y):(x,y[1]))
+ordersJoinMap=ordersJoin.map(lambda (x,y):((x,y[0]),y[1]))
+
+
+>>> ordersJoinMap.take(10)
+[((u'35540', u'2014-02-28 00:00:00.0'), u'399.98'), ((u'35540', u'2014-02-28 00:00:00.0'), u'35.98'), ((u'35232', u'2014-02-27 00:00:00.0'), u'100.0'), ((u'48580', u'2014-05-22 00:00:00.0'), u'149.94'), ((u'48580', u'2014-05-22 00:00:00.0'), u'200.0'), ((u'48580', u'2014-05-22 00:00:00.0'), u'299.98'), ((u'48580', u'2014-05-22 00:00:00.0'), u'299.95'), ((u'6972', u'2013-09-06 00:00:00.0'), u'129.99'), ((u'28991', u'2014-01-20 00:00:00.0'), u'239.96'), ((u'28991', u'2014-01-20 00:00:00.0'), u'299.98')]
+
+
+ordersJoinMapRBK=ordersJoinMap.reduceByKey(lambda x, y: (float(x) + float(y) ))
+
+>>> ordersJoinMapRBK.take(10)
+[((u'35540', u'2014-02-28 00:00:00.0'), 435.96000000000004), ((u'1850', u'2013-08-03 00:00:00.0'), 619.9200000000001), ((u'32516', u'2014-02-11 00:00:00.0'), 439.95000000000005), ((u'56768', u'2014-07-19 00:00:00.0'), u'129.99'), ((u'57068', u'2014-07-20 00:00:00.0'), u'129.99')
+u'9052', u'2013-09-19 00:00:00.0'), 249.97000000000003)]
+
+Broadcast variable
+=====================
+
+what is broadcast - passing info to the executors 
+scala code: http://www.itversity.com/topic/broadcast-variables/
+let us do above join using broadcast variable . 
+
+the smaller table is broadcasted to all the executor nodes 
+
+inputBaseDir ="hdfs://localhost:54310/user/retail_db/"
+orders=sc.textFile(inputBaseDir+"orders")
+ordersFiltered=orders.filter(lambda x: (x.split(',')[3]=='COMPLETE') | (x.split(',')[3]=='CLOSED'))
+ordersMap=ordersFiltered.map(lambda x:(x.split(',')[0],x.split(',')[1]))
+
+now create a broadcast variable bv which is cached in memory
+collectAsMap will make it hashmap
+bv=sc.broadcast(ordersMap.collectAsMap())
+
+bv.value
+{u'38344': u'2014-03-18 00:00:00.0', u'38347': u'2014-03-18 00:00:00.0'}
+
+
+here we are not doing join ,get the lookup from bv on the basis of date - the key 
+orderItemsMap=sc.textFile(inputBaseDir+"order_items").map(lambda x:(bv.value.get(x.split(',')[1]) ,x.split(',')[4]))
+
+note in the map function the o/p is the lookup corresponding to orderid
+bv.value - give the hashMap out of the broadcasted variable 
+
+ordersJoinMapRBK=orderItemsMap.reduceByKey(lambda x, y: (float(x) + float(y) ))  
+
+>>> ordersJoinMapRBK.sortByKey(ascending=False).take(10)
+[(u'2014-07-24 00:00:00.0', 50885.190000000024), (u'2014-07-23 00:00:00.0', 38795.229999999996), (u'2014-07-22 00:00:00.0', 36717.240000000005), (u'2014-07-21 00:00:00.0', 51427.70000000003), (u'2014-07-20 00:00:00.0', 60047.45000000003), (u'2014-07-19 00:00:00.0', 38420.99), (u'2014-07-18 00:00:00.0', 43856.60000000001), (u'2014-07-17 00:00:00.0', 36384.77), (u'2014-07-16 00:00:00.0', 43011.92000000002), (u'2014-07-15 00:00:00.0', 53480.23000000002)]
+
+
+
+
+

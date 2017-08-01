@@ -1,0 +1,259 @@
+Spark Project 2
+
+The details can be found in Lehman.txt which describes all the masterdata tables and all .
+dataset path: /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv 
+
+
+
+===============================================================================================================
+=====================================Spark reading from hdfs=====================================
+Step 1: 
+	Load data from the CSV file to HDFS 
+
+	The database is comprised of the following main tables:
+
+  MASTER - Player names, DOB, and biographical info
+  Batting - batting statistics
+  Pitching - pitching statistics
+  Fielding - fielding statistics
+
+
+#copying to HDFS (using linux command line)
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Master.csv /user/baseball/master
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Batting.csv /user/baseball/batting
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Pitching.csv /user/baseball/pitching
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Fielding.csv /user/baseball/fielding
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Teams.csv /user/baseball/teams
+
+
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/ManagersHalf.csv /user/baseball/managershalf
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Managers.csv /user/baseball/managers
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/HallOfFame.csv /user/baseball/halloffame
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/FieldingPost.csv /user/baseball/fieldingpost
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/FieldingOF.csv /user/baseball/fieldingof
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/BattingPost.csv /user/baseball/battingpost
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/AwardsSharePlayers.csv /user/baseball/awardsshareplayers
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/AwardsShareManagers.csv /user/baseball/awardssharemanagers
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/AwardsPlayers.csv /user/baseball/awardsplayers
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/AwardsManagers.csv /user/baseball/awardsmanagers
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Appearances.csv /user/baseball/appearances
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/AllstarFull.csv /user/baseball/allstarfull
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/TeamsHalf.csv /user/baseball/teamshalf
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/TeamsFranchises.csv /user/baseball/teamsfranchises
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/SeriesPost.csv /user/baseball/seriespost
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/SchoolsPlayers.csv /user/baseball/schoolsplayers
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Schools.csv /user/baseball/schools
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/Salaries.csv /user/baseball/salaries
+hadoop fs -put /Users/pbishwal/Documents/Techie/SparknScala/lahman591-csv/PitchingPost.csv /user/baseball/pitchingpost
+
+*********Problem Statement 1 ******************
+a.Deduce the PlayerId,PlayerName ,RunScored 
+b.player details who scored maximum number of Runs 
+
+
+Lets first create DF and TempView for the Master  and batting table 
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
+from pyspark.sql import  Row
+
+--master table ---
+spark = SparkSession.builder.appName("BaseBall Analysis").config("spark.some.config.option", "some-value").getOrCreate()
+data = sc.textFile("hdfs://localhost:54310/user/baseball/master")
+header = data.first()
+data1= data.filter(lambda row:row not in header)
+
+def master(line):
+	tempList=[]
+	for i in line.split(','):
+		tempList.append(i)
+	return [
+			 tempList[0]
+			 ,tempList[1]
+			 ,tempList[2]
+			 ,tempList[3]
+			 ,tempList[4]
+			 ,tempList[5]
+			 ,tempList[6]
+			 ,tempList[7]
+			 ,tempList[8]
+			 ,tempList[9]
+			 ,tempList[10]
+			 ,tempList[11]
+			 ,tempList[12]
+			 ,tempList[13]
+			 ,tempList[14]
+			 ,tempList[15]
+			 ,tempList[16]
+			 ,tempList[17]
+			 ,tempList[18]
+			 ,tempList[19]
+			 ,tempList[20]
+			 ,tempList[21]
+			 ,tempList[22]
+			 ,tempList[23]
+			 ,tempList[24]
+			 ,tempList[25]
+			 ,tempList[26]
+			 ,tempList[27]
+			 ,tempList[28]
+			 ,tempList[29]
+			 ,tempList[30]
+			 ,tempList[31]
+			 ,tempList[32]
+
+	] 
+
+data2 = data1.map(master)
+master_data=data2.map(lambda p:Row(
+					lahmanID    =p[0]
+					,playerID    =p[1]
+					,managerID   =p[2]
+					,hofID       =p[3]
+					,birthYear   =p[4]
+					,birthMonth  =p[5]
+					,birthDay    =p[6]
+					,birthCountry=p[7]
+					,birthState  =p[8]
+					,birthCity   =p[9]
+					,deathYear   =p[10]
+					,deathMonth  =p[11]
+					,deathDay    =p[12]
+					,deathCountry=p[13]
+					,deathState  =p[14]
+					,deathCity   =p[15]
+					,nameFirst   =p[16]
+					,nameLast    =p[17]
+					,nameNote    =p[18]
+					,nameGiven   =p[19]
+					,nameNick    =p[20]
+					,weight      =p[21]
+					,height      =p[22]
+					,bats        =p[23]
+					,throws      =p[24]
+					,debut       =p[25]
+					,finalGame   =p[26]
+					,college     =p[27]
+					,lahman40ID  =p[28]
+					,lahman45ID  =p[29]
+					,retroID     =p[30]
+					,holtzID     =p[31]
+					,bbrefID     =p[32]
+					))
+
+master_data_DF=spark.createDataFrame(master_data)
+Note:
+# Dataset and DataFrame API registerTempTable has been deprecated and replaced by createOrReplaceTempView
+master_data_DF.createOrReplaceTempView("master_data_vw")
+
+master_data_sql_DF=spark.sql("select * from master_data_vw")
+master_data_sql_DF.show()
+
+# master_data_DF.select("playerID").show()
+--batting table 
+batting_data = sc.textFile("hdfs://localhost:54310/user/baseball/batting")
+filter is not required as it has no header 
+
+def batting(line):
+	tempList=[]
+	for i in line.split(','):
+		tempList.append(i)
+	return [
+			 tempList[0]
+			,tempList[1]
+			,tempList[2]
+			,tempList[3]
+			,tempList[4]
+			,tempList[5]
+			,tempList[6]
+			,tempList[7]
+			,tempList[8]
+			,tempList[9]
+			,tempList[10]
+			,tempList[11]
+			,tempList[12]
+			,tempList[13]
+			,tempList[14]
+			,tempList[15]
+			,tempList[16]
+			,tempList[17]
+			,tempList[18]
+			,tempList[19]
+			,tempList[20]
+			,tempList[21]
+			,tempList[22]
+			,tempList[23]
+		    ] 
+
+batting_data2 = batting_data.map(batting)
+batting_dataD=batting_data2.map(lambda p:Row(
+								playerID   =p[0]
+								,yearID    =p[1]
+								,stint     =p[2]
+								,teamID    =p[3]
+								,lgID      =p[4]
+								,G         =p[5]
+								,G_batting =p[6]
+								,AB        =p[7]
+								,R         =p[8]
+								,H         =p[9]
+								,TwoB      =p[10]
+								,ThreeB    =p[11]
+								,HR        =p[12]
+								,RBI       =p[13]
+								,SB        =p[14]
+								,CS        =p[15]
+								,BB        =p[16]
+								,SO        =p[17]
+								,IBB       =p[18]
+								,HBP       =p[19]
+								,SH        =p[20]
+								,SF        =p[21]
+								,GIDP      =p[22]
+								,G_Old     =p[23]
+								))
+
+
+batting_data_DF=spark.createDataFrame(batting_dataD)
+Note:
+# Dataset and DataFrame API registerTempTable has been deprecated and replaced by createOrReplaceTempView
+batting_data_DF.createOrReplaceTempView("batting_data_vw")
+
+batting_data_sql_DF=spark.sql("select * from batting_data_vw")
+batting_data_sql_DF.show()
+
+# batting_data_DF.select("playerID").show()
+
+Step b : Now we need to join the 2 datasets to find out which player  has got maximum number of runs 
+
+from pyspark.sql import SQLContext
+from pyspark.sql import HiveContext
+from pyspark.sql import Row, functions as F
+from pyspark.sql.functions import  *
+
+sqlContext = HiveContext(sc)
+build1_DF = sqlContext.sql("select a.playerID, a.nameFirst,a.nameLast,sum(R) AS Runs FROM master_data_vw a JOIN batting_data_vw b ON cast(a.playerID as varchar(50) )=cast(b.playerID as varchar(50) ) GROUP BY  a.playerID, a.nameFirst,a.nameLast ")
+
+build1_DF.createOrReplaceTempView("temp_build_vw")
+final_output=spark.sql(" SELECT x.playerID, x.nameFirst,x.nameLast,x.Runs FROM (SELECT a.playerID, a.nameFirst,a.nameLast,a.Runs,ROW_NUMBER() OVER (ORDER BY a.Runs desc ) as row_nr FROM temp_build_vw a )x WHERE x.row_nr<=10") 
+
+Now Export the final output to HDFS 
+final_output.coalesce(1).write.option("header", "true").csv("hdfs://localhost:54310/user/baseball/output/top10_runs")
+
+this will create a top10_runs directory under output and content will be present insdie it 
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -cat /user/baseball/output/top10_runs/part-r-00000-549e998b-2dc6-4878-86f6-52f8bbfaee65.csv
+17/07/28 19:25:37 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+playerID,nameFirst,nameLast,Runs
+henderi01,Rickey,Henderson,2295.0
+cobbty01,Ty,Cobb,2246.0
+bondsba01,Barry,Bonds,2227.0
+aaronha01,Hank,Aaron,2174.0
+ruthba01,Babe,Ruth,2174.0
+rosepe01,Pete,Rose,2165.0
+mayswi01,Willie,Mays,2062.0
+ansonca01,Cap,Anson,1996.0
+musiast01,Stan,Musial,1949.0
+gehrilo01,Lou,Gehrig,1888.0
+
+NOW this file can be loaded in MYSQL for reporting puposes 
+

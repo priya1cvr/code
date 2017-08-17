@@ -1,0 +1,125 @@
+Spark_Project_5
+-----------------
+
+Load data from Mysql to HDFS using Spark:
+
+login to mysql using below :else u will get error :ERROR 1148 (42000): The used command is not allowed with this MySQL version
+ mysql -h localhost -u hiveuser -p  --local-infile itest_user
+--local-infile => for the database you want to insert.
+
+step 1: create table person in mysql  
+
+CREATE TABLE  itest_user.person 
+(
+ Person_Id Int,
+ Fisrt_Name VARCHAR(50), 
+ Last_Name VARCHAR(100),
+ Gender CHAR(1),
+ PRIMARY KEY (Person_Id)
+);
+
+LOCAL Keyword is specified becoz of error :MySQL server is running with the --secure-file-priv option so it cannot execute   
+The error goes off when you login as said above 
+
+mysql> LOAD DATA LOCAL INFILE '/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication_orielly/persons.csv' INTO TABLE itest_user.person FIELDS TERMINATED BY ',' ;
+Query OK, 5 rows affected (0.01 sec)
+Records: 5  Deleted: 0  Skipped: 0  Warnings: 0
+
+mysql> select * from itest_user.person ;
++-----------+------------+-----------+--------+
+| Person_Id | Fisrt_Name | Last_Name | Gender |
++-----------+------------+-----------+--------+
+|      1001 | Rahul      | Patel     | m      |
+|      1002 | Anisha     | Mohanty   | f      |
+|      1003 | Pritam     | Chowdury  | m      |
+|      1004 | Ishita     | Sonalika  | f      |
+|      1005 | Manoj      | Pandey    | m      |
++-----------+------------+-----------+--------+
+5 rows in set (0.00 sec)
+
+
+step 1.1 : Grant all privileges on itest_user.person
+
+grant all privileges on itest_user.person  to hiveuser@localhost ;
+
+
+Note: from the above mysql login you wont get the user and host information as you have logged in directly to itest_user
+so,1st login using mysql -h localhost -u hiveuser -p    , then fire below command to see the user and host then grant privileges accordingly
+
+mysql> select user,host from user;
++-----------+-----------+
+| user      | host      |
++-----------+-----------+
+| hiveuser  | localhost |
+| mysql.sys | localhost |
+| root      | localhost |
++-----------+-----------+
+
+
+step 2 : launch spark shell 
+
+note using below command is unable to initialze the spark context 
+./spark-shell --driver-class-path /usr/local/Cellar/hive/2.1.1/libexec/lib/mysql-connector-java-5.1.41-bin.jar --jars /usr/local/Cellar/hive/2.1.1/libexec/lib/mysql-connector-java-5.1.41-bin.jar
+
+so, we need to launch the sparkshell normally i.e ./spark-shell
+
+
+step 3: Create DF 
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val personDF =sqlContext.load("jdbc",Map("url"->"jdbc:mysql://localhost/itest_user?user=hiveuser&password=welcome1","dbtable"->"person"));
+
+scala> personDF.show()
+server certificate verification.
++---------+----------+---------+------+
+|Person_Id|Fisrt_Name|Last_Name|Gender|
++---------+----------+---------+------+
+|     1001|     Rahul|    Patel|     m|
+|     1002|    Anisha|  Mohanty|     f|
+|     1003|    Pritam| Chowdury|     m|
+|     1004|    Ishita| Sonalika|     f|
+|     1005|     Manoj|   Pandey|     m|
++---------+----------+---------+------+
+
+step 4 : register it as temptable 
+scala> personDF.registerTempTable("personsx")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+
+sqlContext.sql("select * from personsx").show()
++---------+----------+---------+------+
+|Person_Id|Fisrt_Name|Last_Name|Gender|
++---------+----------+---------+------+
+|     1001|     Rahul|    Patel|     m|
+|     1002|    Anisha|  Mohanty|     f|
+|     1003|    Pritam| Chowdury|     m|
+|     1004|    Ishita| Sonalika|     f|
+|     1005|     Manoj|   Pandey|     m|
++---------+----------+---------+------+
+
+step 5 : now you can save it in hdfs path 
+
+personDF.write.save("hdfs://localhost:54310/user/pbishwal/user/hive/iTest/persons")
+
+the above file is getting saved in parquet format 
+Priyabrats-MacBook-Air:lib pbishwal$ hadoop fs -ls /user/pbishwal/user/hive/iTest/persons
+-rw-r--r--   3 pbishwal supergroup          0 2017-08-17 07:56 /user/pbishwal/user/hive/iTest/persons/_SUCCESS
+-rw-r--r--   3 pbishwal supergroup       1149 2017-08-17 07:56 /user/pbishwal/user/hive/iTest/persons/part-r-00000-88b28538-c52c-4005-9232-29d9f8273bb1.snappy.parquet
+
+lets read the parquet file in scala 
+import spark.implicits._
+
+spark.read.parquet("hdfs://localhost:54310/user/pbishwal/user/hive/iTest/persons/part-r-00000-88b28538-c52c-4005-9232-29d9f8273bb1.snappy.parquet").show()
+
++---------+----------+---------+------+
+|Person_Id|Fisrt_Name|Last_Name|Gender|
++---------+----------+---------+------+
+|     1001|     Rahul|    Patel|     m|
+|     1002|    Anisha|  Mohanty|     f|
+|     1003|    Pritam| Chowdury|     m|
+|     1004|    Ishita| Sonalika|     f|
+|     1005|     Manoj|   Pandey|     m|
++---------+----------+---------+------+
+
+
+

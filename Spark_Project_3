@@ -1,0 +1,754 @@
+Spark_Project_3
+=================
+dataset :https://github.com/dgadiraju/data
+
+Spark different file formats and compression
+===================================================
+
+
+spark = SparkSession.builder.appName("BaseBall Analysis").config("spark.some.config.option", "some-value").getOrCreate()
+
+orders =sc.textFile("/Users/pbishwal/Documents/Techie/SparknScala/Datasets/data-master/retail_db/orders/")
+
+let us write in a particular file format 
+create a dataframe out of the orders 
+case class created in scala 
+case class order(order_id:Int,order_dt:String,order_customer_id:Int,order_status:String)
+
+in Pyspark function is created 
+from pyspark.sql import  Row
+
+def order_fn (line):
+	tempList=[]
+	for i in line.split(','):
+		tempList.append(i)
+	return [  tempList[0],tempList[1],tempList[2],tempList[3] ]
+
+orders_data=orders.map(order_fn)		
+orders_data2 =orders_data.map(lambda p:Row(
+								order_id   =p[0]
+								,order_dt    =p[1]
+								,order_customer_id =p[2]
+								,order_status    =p[3]
+								))
+now create a dataFrame 
+orders_data_DF=spark.createDataFrame(orders_data2)
+
+dataFrame writer - write to hdfs path : Note orders_parquet shdnt exist earlier 
+
+--write to parquet
+>>> orders_data_DF.write.parquet("hdfs://localhost:54310/user/retail_db/orders_parquet")
+[Stage 48:>                                                         (0 + 2) / 2]SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+
+--write to json
+orders_data_DF.write.json("hdfs://localhost:54310/user/retail_db/orders_json")
+
+-- create a sqlcontext 
+from pyspark.sql import SQLContext
+from pyspark.sql import HiveContext
+from pyspark.sql import Row, functions as F
+from pyspark.sql.functions import  *
+
+orders_data_DF.createOrReplaceTempView("orders_vw")
+
+orders_by_status=spark.sql("select order_status,count(*) as order_status_cnt from orders_vw group by order_status")
+# note put alias fr count(*) else error will be found while writing and saving parquet and avro 
++---------------+--------+                                                      
+|   order_status|count(1)|
++---------------+--------+
+|PENDING_PAYMENT|   15030|
+|       COMPLETE|   22899|
+|        ON_HOLD|    3798|
+| PAYMENT_REVIEW|     729|
+|     PROCESSING|    8275|
+|         CLOSED|    7556|
+|SUSPECTED_FRAUD|    1558|
+|        PENDING|    7610|
+|       CANCELED|    1428|
++---------------+--------+
+
+# note you can save the DataFrame as table in spark by below command :
+>>> orders_by_status.write.saveAsTable("itest.my_order_data")
+if you go to hive then you can see the data stored in hive 
+hive> select count(*) from itest.my_order_data; 
+OK
+9
+you can also query it in spark 
+>>> spark.sql("select * from itest.my_order_data").show()
++---------------+----------------+
+|   order_status|order_status_cnt|
++---------------+----------------+
+|PENDING_PAYMENT|           15030|
+.....
+....the o/p is ommitted
+|         CLOSED|            7556|
++---------------+----------------+
+
+
+# write is availabe in DF and read is available in sqlContext 
+
+orders_by_status.write.json("hdfs://localhost:54310/user/retail_db/orders_by_status_json")
+
+it has created 200 files 
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -ls /user/retail_db/orders_by_status_json | wc -l 
+     202
+lets take the last file (most files may be 0 bytes so take the files having count)
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -cat /user/retail_db/orders_by_status_json/part-r-00185-ed7679a2-e850-47ec-a3f5-a8facb9e6c42.json
+{"order_status":"CANCELED","count(1)":1428}
+
+note if you write  the json as above then you may get unnecessarily 0 bytes files ~200 files 
+
+sqlContext.setConf("spark.sql.shuffle.partitions", 2) 
+#default is 1
+
+now remove the directory created earlier :
+hadoop fs -rm -r /user/retail_db/orders_by_status_json/
+ Deleted /user/retail_db/orders_by_status_json
+
+now lets write again
+orders_by_status.write.json("hdfs://localhost:54310/user/retail_db/orders_by_status_json")
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -ls /user/retail_db/orders_by_status_json/ | wc -l
+       4
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -cat /user/retail_db/orders_by_status_json/part-r-00000-a7d63fe8-b182-4ac0-a026-2305e7b7588c.json
+{"order_status":"PENDING_PAYMENT","count(1)":15030}
+{"order_status":"PROCESSING","count(1)":8275}
+{"order_status":"PAYMENT_REVIEW","count(1)":729}
+{"order_status":"PENDING","count(1)":7610}
+{"order_status":"ON_HOLD","count(1)":3798}
+{"order_status":"SUSPECTED_FRAUD","count(1)":1558}
+
+-now read the json file 
+
+sqlContext.read.json("hdfs://localhost:54310/user/retail_db/orders_by_status_json").show()
++--------+---------------+
+|count(1)|   order_status|
++--------+---------------+
+|   15030|PENDING_PAYMENT|
+|    8275|     PROCESSING|
+|     729| PAYMENT_REVIEW|
+|    7610|        PENDING|
+|    3798|        ON_HOLD|
+|    1558|SUSPECTED_FRAUD|
+|    7556|         CLOSED|
+|   22899|       COMPLETE|
+|    1428|       CANCELED|
++--------+---------------+
+
+===========================
+Parquet 
+orders_by_status.write.parquet("hdfs://localhost:54310/user/retail_db/orders_by_status_parquet")
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -ls /user/retail_db/orders_by_status_parquet | wc -l 
+       4
+
+you can't read directly so use sqlContext to read        
+sqlContext.read.parquet("hdfs://localhost:54310/user/retail_db/orders_by_status_parquet").show()
++---------------+----------------+
+|   order_status|order_status_cnt|
++---------------+----------------+
+|PENDING_PAYMENT|           15030|
+|     PROCESSING|            8275|
+| PAYMENT_REVIEW|             729|
+|        PENDING|            7610|
+|        ON_HOLD|            3798|
+|SUSPECTED_FRAUD|            1558|
+|         CLOSED|            7556|
+|       COMPLETE|           22899|
+|       CANCELED|            1428|
++---------------+----------------+
+
+
+==================
+For avro file format you need to register the dependencies 
+cd /Users/pbishwal/spark-2.0.2-bin-hadoop2.7/bin
+
+For scala 
+./spark-shell --packages com.databricks:spark-avro_2.11:2.0.2 --master 	yarn --conf spark.ui.port=19635
+Exception in thread "main" java.lang.Exception: When running with master 'yarn' either HADOOP_CONF_DIR or YARN_CONF_DIR must be set in the environment.
+
+pyspark 
+
+orders_by_status.write.format("com.databricks.spark.avro").save("hdfs://localhost:54310/user/retail_db/orders_by_status_avro")
+
+above command gives error: so cd /Users/pbishwal/spark-2.0.2-bin-hadoop2.7/bin 
+install packages 
+./spark-shell --packages com.databricks:spark-avro_2.11:3.2.0  => launch scala shell 
+./pyspark --packages com.databricks:spark-avro_2.11:3.2.0.   => launch pyspark shell 
+
+orders_by_status=spark.sql("select order_status,count(*) as order_status_cnt from orders_vw group by order_status")
+
+after launching spark shell in pyspark , do all the above DF's and sqlcontext again 
+orders_by_status.write.format("com.databricks.spark.avro").save("hdfs://localhost:54310/user/retail_db/orders_by_status_avro")
+
+error: org.apache.avro.SchemaParseException: Illegal character in: count(1)
+Note above error will come when you dont give alias in the sql
+so you should give count(*) as order_status_cnt 
+	orders_by_status=spark.sql("select order_status,count(*) as order_status_cnt from orders_vw group by order_status")
+
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -ls /user/retail_db/orders_by_status_avro | wc -l 
+     202
+no. of files are more due to sparkSql partitioners 
+so ,
+sqlContext.setConf("spark.sql.shuffle.partitions", 2) 
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -rm -r  /user/retail_db/orders_by_status_avro 
+
+orders_by_status.write.format("com.databricks.spark.avro").save("hdfs://localhost:54310/user/retail_db/orders_by_status_avro")
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -ls /user/retail_db/orders_by_status_avro | wc -l 
+       4
+
+you can't read this avro file , so create sqlcontext to read 
+sqlContext.read.format("com.databricks.spark.avro").load("hdfs://localhost:54310/user/retail_db/orders_by_status_avro").show()
+
++---------------+----------------+
+|   order_status|order_status_cnt|
++---------------+----------------+
+|PENDING_PAYMENT|           15030|
+|     PROCESSING|            8275|
+| PAYMENT_REVIEW|             729|
+|        PENDING|            7610|
+|        ON_HOLD|            3798|
+|SUSPECTED_FRAUD|            1558|
+|         CLOSED|            7556|
+|       COMPLETE|           22899|
+|       CANCELED|            1428|
++---------------+----------------+
+
+in scala 
+sqlContext.read.avro("hdfs://localhost:54310/user/retail_db/orders_by_status_avro").show()
+
+
+this is all about the file formats 
+
+========================================
+lets do the compression 
+so first delete the avro files 
+
+hadoop fs -rm -r  /user/retail_db/orders_by_status_avro
+
+-this is available fr avro and parquet only 
+sqlContext.setConf("spark.sql.avro.compression.codec", "snappy") 
+
+orders_by_status.write.format("com.databricks.spark.avro").save("hdfs://localhost:54310/user/retail_db/orders_by_status_avro")
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -du /user/retail_db/orders_by_status_avro
+0    /user/retail_db/orders_by_status_avro/_SUCCESS
+308  /user/retail_db/orders_by_status_avro/part-r-00000-a49af444-834b-408b-a56f-ca24d1f3ce02.avro
+256  /user/retail_db/orders_by_status_avro/part-r-00001-a49af444-834b-408b-a56f-ca24d1f3ce02.avro
+
+
+sqlContext.read.format("com.databricks.spark.avro").load("hdfs://localhost:54310/user/retail_db/orders_by_status_avro").show()
+
+=======by doing gzip compression and repeating the above steps the size is little reduced 
+sqlContext.setConf("spark.sql.avro.compression.codec", "gzip") 
+
+Priyabrats-MacBook-Air:bin pbishwal$ hadoop fs -du /user/retail_db/orders_by_status_avro
+0    /user/retail_db/orders_by_status_avro/_SUCCESS
+308  /user/retail_db/orders_by_status_avro/part-r-00000-d7bd87b5-3004-4098-81cc-9c079e2cf183.avro
+248  /user/retail_db/orders_by_status_avro/part-r-00001-d7bd87b5-3004-4098-81cc-9c079e2cf183.avro
+
+
+for parquet:
+sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy") 
+
+=====>
+convert from one file format to other i.e e.g convert from parquet to avro 
+step 1: 
+read the parquet DF after you have written 
+
+read2avro_DF=sqlContext.read.parquet("hdfs://localhost:54310/user/retail_db/orders_by_status_parquet") 
+
+step 2: now write that above DF to avro format 
+read2avro_DF.write.format("com.databricks.spark.avro").save("hdfs://localhost:54310/user/retail_db/orders_by_status_pq2avro")
+
+step3: read the DF 
+sqlContext.read.format("com.databricks.spark.avro").load("hdfs://localhost:54310/user/retail_db/orders_by_status_pq2avro").show()
+
++---------------+----------------+
+|   order_status|order_status_cnt|
++---------------+----------------+
+|PENDING_PAYMENT|           15030|
+|     PROCESSING|            8275|
+| PAYMENT_REVIEW|             729|
+|        PENDING|            7610|
+|        ON_HOLD|            3798|
+|SUSPECTED_FRAUD|            1558|
+|         CLOSED|            7556|
+|       COMPLETE|           22899|
+|       CANCELED|            1428|
++---------------+----------------+
+
+
+					Shuffling: What it is and why it's important
+				===========================================================
+
+
+case class CFFPurchase(customerId: Int, destination: String, price: Double)
+
+
+val purchases = List( CFFPurchase(100, "Geneva", 22.25),
+                      CFFPurchase(300, "Zurich", 42.10),
+                      CFFPurchase(100, "Fribourg", 12.40),
+                      CFFPurchase(200, "St.Gallen", 8.20),
+                      CFFPurchase(100, "Lucerne", 31.60),
+                      CFFPurchase(300, "Basel", 16.20) )
+
+val purchasesRdd  = sc.parallelize(purchases)
+
+
+
+-----------------
+splitting each individual as 
+scala> purchasesRdd.map( p => (p.customerId, p.price) ).collect()
+res3: Array[(Int, Double)] = Array((100,22.25), (300,42.1), (100,12.4), (200,8.2), (100,31.6), (300,16.2))
+
+scala> purchasesRdd.map( p => (p.customerId, p.price) ).groupByKey().collect()
+res4: Array[(Int, Iterable[Double])] = Array((100,CompactBuffer(22.25, 12.4, 31.6)), (300,CompactBuffer(42.1, 16.2)), (200,CompactBuffer(8.2)))
+
+scala> purchasesRdd.map( p => (p.customerId, p.price) ).groupByKey().map( p => (p._1, (p._2.size, p._2.sum)) ).collect()
+res5: Array[(Int, (Int, Double))] = Array((100,(3,66.25)), (300,(2,58.3)), (200,(1,8.2)))
+
+----------------------
+
+
+
+scala> val purchasesPerMonth = purchasesRdd.map( p => (p.customerId, p.price) ).groupByKey().map( p => (p._1, (p._2.size, p._2.sum)) ).collect()
+purchasesPerMonth: Array[(Int, (Int, Double))] = Array((100,(3,66.25)), (300,(2,58.3)), (200,(1,8.2)))
+
+Can we do a better job?
+
+Perhaps we can reduce before we shuffle. This could greatly reduce the amount of data we send over network.
+
+To do this we use reduceByKey
+
+
+
+scala> val purchasesPerMonth = purchasesRdd.map( p => (p.customerId, (1, p.price)) ).reduceByKey( (v1, v2) => (v1._1 + v2._1, v1._2 + v2._2) ).collect() 
+purchasesPerMonth: Array[(Int, (Int, Double))] = Array((100,(3,66.25)), (300,(2,58.3)), (200,(1,8.2)))
+
+Benefits of this approach:
+
+By reducing the dataset first, the amount of data sent over the network during the shuffle is greatly reduced. Thus performance gains are achieved!
+This is because when using groupByKey, it requires collecting all key-valu pairs with the same key on the same machine.
+
+
+Partitioning
+============
+
+Two kinds of partitioning available in Spark:
+
+Hash partitioning
+Range partitioning
+Customizing a partitioning is only possible on Pair RDDs.
+
+		Hash Partitioning
+		-----------------
+Given a Pair RDD that should be grouped:
+val purchasesPerMonth = purchasesRdd.map( p => (p.customerId, p.price) ).groupByKey()
+	// RDD[K, Iterable[V]] i.e RDD[p.customerId, Iterable[p.price]]
+
+scala> purchasesPerMonth.toDebugString
+res0: String =
+(4) ShuffledRDD[2] at groupByKey at <console>:30 []
+ +-(4) MapPartitionsRDD[1] at map at <console>:30 []
+    |  ParallelCollectionRDD[0] at parallelize at <console>:28 []
+
+
+groupByKey first computes per tuple (k,v) its partition p:
+
+p = k.hashCode() % numPartitions
+Then, all tuples in the same partition p are sent to the machine hosting p.
+
+Intuition: hash partitioning attempts to spread data evenly across partitions based on the key.
+
+scala> val pairs = sc.parallelize(List((1, 1), (2, 2), (3, 3)),8)
+
+scala> val partitioned = pairs.partitionBy(new org.apache.spark.HashPartitioner(2))
+partitioned: org.apache.spark.rdd.RDD[(Int, Int)] = ShuffledRDD[14] at partitionBy at <console>:26
+
+scala> partitioned.partitions.length
+res15: Int = 2
+
+scala> partitioned.glom().collect()
+res16: Array[Array[(Int, Int)]] = Array(Array((2,2)), Array((1,1), (3,3)))
+
+
+
+
+scala> val pairs1 = sc.parallelize(List((1, 1), (2, 2), (3, 3)),8)
+pairs1: org.apache.spark.rdd.RDD[(Int, Int)] = ParallelCollectionRDD[12] at parallelize at <console>:24
+
+scala> pairs1.partitions.length
+res10: Int = 8
+
+scala> pairs1.glom().collect()
+res11: Array[Array[(Int, Int)]] = Array(Array(), Array(), Array((1,1)), Array(), Array(), Array((2,2)), Array(), Array((3,3)))
+
+
+		Range Partitioning
+		------------------
+
+Pair RDDs may contain keys that may have an ordering defined. Eg. If the key is Int, Char, String ...
+
+For such RDDs, range partitioning may be more efficient.
+
+Using a range partitioner, keys are partitioned according to 2 things:
+
+an ordering for keys
+a set of sorted ranges of keys
+Property: tuples with keys in the same range appear on the same machine.
+
+Example: Hash Partitioning
+
+Consider a Pair RDD, with keys: [8, 96, 240, 400, 401, 800], and a desired number of partitions of 4.
+
+We know
+
+p = k.hashCode() % numPartitions
+  = k % 4
+Thus, based on this the keys are distributed as follows:
+
+Partition 0: [8, 96, 240, 400, 800]
+Partition 1: [401]
+Partition 2: []
+Partition 3: []
+The result is a very unbalanced distribution which hurts performance, since the data is spread mostly on 1 node, so not very parallel.
+
+Example: Range Partitioning
+
+This can improve the distribution significantly
+
+Assumptions: (a) Keys non-negative, (b) 800 is the biggest key in the RDD
+Set of ranges: from (800/4): [1-200], [201-400], [401-600], [601-800]
+Thus, based on this the keys are distributed as follows:
+
+Partition 0: [8, 96]
+Partition 1: [240, 400]
+Partition 2: [401]
+Partition 3: [800]
+This is much more balanced.
+
+Customizing Partitioning Data
+
+How do we set a partitioning for our data? 2 ways:
+
+1.Call partitionBy on an RDD, providing and explicit Partitioner.
+2.Using transformations that return RDDs with specific partitioners.
+
+Partitioning using partitionBy
+===============================
+
+Invoking this creates an RDD with the specified partitioner
+scala> import org.apache.spark._
+
+
+val pairsRDD = purchasesRdd.map(p => (p.customerId, p.price))
+
+scala> pairsRDD.collect()
+res26: Array[(Int, Double)] = Array((100,22.25), (300,42.1), (100,12.4), (200,8.2), (100,31.6), (300,16.2))
+
+scala> pairsRDD.glom().collect()
+res27: Array[Array[(Int, Double)]] = Array(Array((100,22.25)), Array((300,42.1), (100,12.4)), Array((200,8.2)), Array((100,31.6), (300,16.2)))
+
+		before using custom partitioner 
+scala> pairsRDD.partitions.length
+res28: Int = 4
+
+After using custom partitioner 
+
+val tunedPartitioner = new org.apache.spark.RangePartitioner(8, pairsRDD)
+# scala> val tunedPartitioner = new RangePartitioner(8, pairsRDD)  // if import has been done 
+
+val partitioned = pairsRDD.partitionBy(tunedPartitioner).persist()
+
+scala> partitioned.glom().collect()
+res29: Array[Array[(Int, Double)]] = Array(Array((100,22.25), (100,12.4), (100,31.6)), Array((200,8.2)), Array((300,42.1), (300,16.2)), Array())
+
+scala> partitioned.partitions.length
+res30: Int = 4
+
+note: still the partition length is 4 as it is a range partitions and the values are only 100,200,300 so it spans only the 4 partitons ranges as against 8 partitions defined 
+
+now if u change the tunedPartitioner to 2 then it will create only 2 partions 
+
+scala> val tunedPartitioner = new org.apache.spark.RangePartitioner(2, pairsRDD)
+tunedPartitioner: org.apache.spark.RangePartitioner[Int,Double] = org.apache.spark.RangePartitioner@14ac
+
+scala> val partitioned = pairsRDD.partitionBy(tunedPartitioner).persist()
+partitioned: org.apache.spark.rdd.RDD[(Int, Double)] = ShuffledRDD[40] at partitionBy at <console>:38
+
+scala> partitioned.glom().collect()
+res36: Array[Array[(Int, Double)]] = Array(Array((100,22.25), (100,12.4), (100,31.6)), Array((300,42.1), (200,8.2), (300,16.2)))
+
+scala> partitioned.partitions.length
+res37: Int = 2
+
+vvimp:
+
+	for above let us make it a hashPartitioner against range partition we will find there is a skewness in hashpartition 
+
+	scala> val tunedPartitioner = new org.apache.spark.HashPartitioner(4)
+tunedPartitioner: org.apache.spark.HashPartitioner = org.apache.spark.HashPartitioner@4
+
+scala> val partitioned = pairsRDD.partitionBy(tunedPartitioner).persist()
+partitioned: org.apache.spark.rdd.RDD[(Int, Double)] = ShuffledRDD[42] at partitionBy at <console>:38
+
+scala> partitioned.glom().collect()
+res38: Array[Array[(Int, Double)]] = Array(Array((100,22.25), (300,42.1), (100,12.4), (200,8.2), (100,31.6), (300,16.2)), Array(), Array(), Array())
+
+	----> see the skewness above 
+
+scala>  partitioned.partitions.length
+res39: Int = 4
+
+
+
+in pyspark 
+==========
+pairsRDD=sc.parallelize([[100,22.25], [300,42.1], [100,12.4], [200,8.2], [100,31.6], [300,16.2]])
+default is 4 partitions 
+
+>>> pairsRDD.glom().collect()
+[[[100, 22.25]], [[300, 42.1], [100, 12.4]], [[200, 8.2]], [[100, 31.6], [300, 16.2]]]
+
+now lets change to 8 partitions 
+>>> pairsRDD=sc.parallelize([[100,22.25], [300,42.1], [100,12.4], [200,8.2], [100,31.6], [300,16.2]],8) 
+>>> pairsRDD.glom().collect()
+[[], [[100, 22.25]], [[300, 42.1]], [[100, 12.4]], [], [[200, 8.2]], [[100, 31.6]], [[300, 16.2]]]
+
+
+
+Creating a RangePartitioner requires
+----------------------------------------
+1.Specifying desired no.of partitions
+2.Providing a Pair RDD with ordered keys. This RDD is sampled to create a suitable set of sorted ranges.
+
+Important: thre result of partitionBy should be persisted. Otherwise the partitioning is repeatedly applied (involving shuffling!) each time the partitioned RDD is used.
+
+Partitioning using transformations
+----------------------------------
+
+
+Pair RDDs that are result of a transformation on a partitioned Pair RDD, is typically configured to use the hash partitioner that was used to construct it.
+
+Automatically partitioners:
+
+Some operations on RDDs automatically result in an RDD with a know partitioner - for when it makes sense. E.g. by default, when using sortByKey, a RangePartitioner is used. Further, the default partitioner when using groupByKey, is a HashPartitioner, as we saw earlier.
+
+Operations on Pair RDDs that hold to and propagate a partitioner:
+
+cogroup
+groupWith
+join
+leftOuterJoin
+rightOuterJoin
+groupByKey
+reduceByKey
+foldByKey
+combineByKey
+partitionBy
+sort
+mapValues (if parent has a partitioner)
+flatMapValues (if parent has a partitioner)
+filter (if parent has a partitioner)
+All other operations will produce a result without partitioner!
+
+Why???
+
+Consider the map transformation. Given that we have a hash-partitioned Pair RDD, why would it make sense for map to lose the partitioner in its result RDD?
+
+Because its possible for map or flatMap to change the Key. E.g.
+
+hashPartitionedRdd.map( (k: String, v: Int) => ("doh!", v) )
+In this case, if the map transformation preserved the previous partitioner in the result RDD, it no longer makes sense, as now the keys are all same after the mapping, very different from before the mapping. Hence it makes sense for map to lose the partitioner.
+
+Hence use mapValues. It enables us to still do map transformations without changing the keys, thereby preserving the partitioner.
+
+
+
+					Optimizing with Partitioners
+				======================================
+				
+Why would we want to repartition the data?
+
+It can bring substantial performance gains, especially in face of shuffles.
+
+We saw how using reduceByKey instead of groupByKey localizes data better due to different partitioning strategy and thus reduces latency to deliver performance gains.
+
+By manually repartition the data, for the same example, we can improve the performance even further. By usnig range partitioners we can optimize the use of reduceByKey in that example so that it does not involve any shuffling over the network at all!
+
+
+case class CFFPurchase(customerId: Int, destination: String, price: Double)
+// Assume that we have an RDD of purchases users of CFFs mobile app have made in the past month
+val pairs = purchasesRdd.map( p => (p.customerId, p.price) )
+
+
+val tunedPartitioner = new RangePartitioner(8, pairs) // 8 partitions
+val partitioned = pairs.partitionBy(tunedPartitioner).persist()
+
+scala> partitioned.glom().collect()
+res42: Array[Array[(Int, Double)]] = Array(Array((100,22.25), (100,12.4), (100,31.6)), Array((200,8.2)), Array((300,42.1), (300,16.2)), Array())
+
+/* Same as before */
+
+//uses partitioned instead of purchasesRdd
+
+val purchasesPerMonth = partitioned.map( p => (p._1, (1, p._2) )).reduceByKey( (v1, v2) => (v1._1 + v2._1, v1._2 + v2._2)).collect()
+
+res44: Array[(Int, (Int, Double))] = Array((100,(3,66.25)), (300,(2,58.3)), (200,(1,8.2)))
+This gives a 9 times speedup in practical tests.
+
+How do I know when a shuffle will occur?
+
+Rule of Thumb: a shuffle can occur when the resulting RDD depends on other elements from the same RDD or another RDD.
+
+We can also figure out if a shuffle has been planned or executed via:
+
+The return type of certain transformations. E.g.
+
+org.apache.spark.rdd.RDD[(String, Int)] = ShuffleRDD[366] //shuffle has happended or planned
+Using function toDebugString to see its execution plan:
+
+partitioned.reduceByKey((v1, v2) => (v1._1 + v2._1, v1._2 + v2._2)).toDebugString
+res9: String = 
+(8) MapPartitionRDD[633] at reduceNyKey at <console>:49 []
+| ShuffledRDD[615] at partitionBy at <console>:48 []
+|    CachedPartitions: 8; MemorySize: 1754.8 MB, DiskSIze: 0.0 B.
+Operations that might cause a shuffle:
+
+cogroup
+groupWith
+join
+leftOuterJoin
+rightOuterJoin
+groupByKey
+reduceByKey
+combineByKey
+distinct
+intersection
+repartition
+coalesce
+
+
+Common scenarios where Network Shuffle can be avoided using Partitioning
+
+reduceByKey running on a pre-partitioned RDD will cause the values to be computed locally, requiring only the final reduced value to be sent from worker to the driver.
+
+join called on 2 RDDs that are pre-partitioned with the same partitioner and cached on the same machine will cause the join to be computed locally, with no shuffling across the network.
+
+
+									Wide vs Narrow Dependencies
+								======================================
+https://github.com/rohitvg/scala-spark-4/wiki/Wide-vs-Narrow-Dependencies
+
+Lineages
+--------
+
+Computations on RDDs are represented as a lineage graph, a DAG representing the computations done on the RDD. This representation/DAG is what Spark analyzes to do optimizations. Because of this, for a particular operation, it is possible to step back and figure out how a result of a computation is derived from a particular point.
+
+E.g.:
+
+val rdd = sc.textFile(...)
+val filtered = rdd.map(...).filter(...).persist()
+val count = filtered.count()
+val reduced = filtered.reduce()
+
+How RDDs are represented
+
+RDDs are made up of 4 parts:
+
+1.Partitions: Atomic pieces of the dataset. One or many per compute node.
+
+2.Dependencies: Models relationship between this RDD and its partitions with the RDD(s) it was derived from. 
+  (Note that the  dependencies maybe modeled per partition as shown below).
+
+3.A function for computing the dataset based on its parent RDDs.
+
+4.Metadata about it partitioning scheme and data placement.
+
+
+	RDD Dependencies and Shuffles
+	-------------------------------
+
+Previously we saw the Rule of thumb: a shuffle can occur when the resulting RDD depends on other elements from the same RDD or another RDD.
+
+In fact, RDD dependencies encode when data must move across network. Thus they tell us when data is going to be shuffled.
+
+Transformations cause shuffles, and can have 2 kinds of dependencies:
+
+1. Narrow dependencies: Each partition of the parent RDD is used by at most one partition of the child RDD.
+
+	[parent RDD partition] ---> [child RDD partition]
+	Fast! No shuffle necessary. Optimizations like pipelining possible. Thus transformations which have narrow dependencies are fast.
+
+2. Wide dependencies: Each partition of the parent RDD may be used by multiple child partitions
+                       ---> [child RDD partition 1]
+[parent RDD partition] ---> [child RDD partition 2]
+                       ---> [child RDD partition 3]
+Slow! Shuffle necessary for all or some data over the network. Thus transformations which have narrow dependencies are slow.
+
+
+How can I find out?
+
+dependencies method on RDDs: returns a sequence of Dependency objects, which are actually the dependencies used by Spark's scheduler to know how this RDD depends on RDDs.
+
+The sorts of dependency objects that this method may return include:
+
+Narrow dependency objects
+
+OneToOneDependency
+PruneDependency
+RangeDependency
+Wide dependency objects
+
+ShuffleDependency
+Another method toDebugString prints out a visualization of the RDD lineage along with other information relevant to scheduling. For example, indentations in the output separate groups of narrow transformations that may be pipelined together with wide transformations that require shuffles. These groupings are called stages.
+
+
+Example
+
+val wordsRDD = sc.parallelize(largeList)
+
+/* dependencies */
+
+val pairs = wordsRdd.map(c=>(c,1))
+                    .groupByKey
+                    .dependencies          // <-------------
+// pairs: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@4294a23d)
+
+/* toDebugString */
+
+val pairs = wordsRdd.map(c=>(c,1))
+                    .groupByKey
+                    .toDebugString         // <-------------
+// pairs: String =
+// (8) ShuffledRDD[219] at groupByKey at <console>:38 []
+//  +-(8) MapPartitionsRDD[218] at map at <console>:37 []
+//     | ParallelCollectionRDD[217] at parallelize at <console>:36 []
+
+
+
+	Lineages and Fault Tolerance
+	--------------------------------
+
+Lineages are the key to fault tolerance in Spark
+
+Ideas from functional programming enable fault tolerance in Spark:
+
+1. RDDs are immutable
+2. We use higher-order-functions like map,flatMap,filter to do functional transformations on this immutable data
+3. A function for computing the dataset based on its parent RDDs also is part of an RDD's representation.
+
+We just need to keep the information required by these 3 properties.
+
+Along with keeping track of the dependency information between partitions as well, these 3 properties allow us to: Recover from failures by recomputing lost partitions from lineage graphs, as it is easy to back track in a lineage graph.
+
+Thus we get Fault Tolerance without having to write the RDDs/Data to the disk! The whole data can be re-derived using the above information.
+
+Recomputing missing partitions is fast for narrow but slow for wide dependencies. So if above, a partition in G would have failed, it would have taken us more time to recompute that partition. So losing partitions that were derived from a transformation with wide dependencies, can be much slower.

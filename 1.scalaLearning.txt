@@ -1,0 +1,413 @@
+
+	SetUP
+		Creating an Application in Scala 
+		=================================
+
+/Users/pbishwal/Documents/Techie/SparknScala/scala
+
+Priyabrats-MacBook-Air:scala pbishwal$ cat >MyApp.scala
+class Employee(firstName:String,lastName:String,department:Department)
+
+class Department(department:String)
+
+Priyabrats-MacBook-Air:scala pbishwal$ ls
+Department.class	Employee.class		MyApp.scala
+Priyabrats-MacBook-Air:scala pbishwal$ javap -p Employee.class
+Compiled from "MyApp.scala"
+public class Employee {
+  public Employee(java.lang.String, java.lang.String, Department);
+}
+
+lets remove all class files now as we want to be organised 
+rm * 
+
+mkdir src
+mkdir classes 
+
+Priyabrats-MacBook-Air:scala pbishwal$ mv MyApp.scala src
+
+Priyabrats-MacBook-Air:scala pbishwal$ scalac -d classes src/*
+it tells where the class files will go to i.e classes folder and compile stuffs inside src
+
+Priyabrats-MacBook-Air:scala pbishwal$ cd classes
+Priyabrats-MacBook-Air:classes pbishwal$ ls
+Department.class	Employee.class
+
+lets add below statement inside MyApp.scala at last 
+println("Hello there ") // This will not allow to compile but will run the script 
+
+Priyabrats-MacBook-Air:scala pbishwal$ scalac -d classes src/*
+src/MyApp.scala:5: error: expected class or object definition
+println("Hello there ") // This will not allow to compile but will run the script
+^
+one error found
+
+adding above will not allow to compile as it expected class or obj defination 
+now lets try to run it as script
+
+Priyabrats-MacBook-Air:scala pbishwal$ scala src/MyApp.scala 
+Hello there 
+
+gives the desired output ,you can chose compilation or interperation ,if compiling it shouldnt interpret
+
+
+	Scala Basics
+	------------
+		1.	VAL and VAR
+			===========
+		scala> val a =100
+a: Int = 100
+
+scala> a=40
+<console>:25: error: reassignment to val
+       a=40
+        ^
+
+scala> var b =30
+b: Int = 30
+
+scala> b=5
+b: Int = 5
+
+var - variable can be changed but val -is value can't be changed 
+however var type can't be changed as it is static typed programming lang. 
+types on val and var are implied (it takes the type as u declare)
+types can be explicity defined in declarations 
+
+scala> b="Raj"
+<console>:25: error: type mismatch;
+ found   : String("Raj")
+ required: Int
+       b="Raj"
+
+var are used in single methods where there is one thread and its been used to create obj.
+
+how to change type 
+scala> val a =400
+a: Int = 400
+
+scala> val a:Double =400
+a: Double = 400.0
+
+scala> val a =400:Double
+a: Double = 400.0
+
+
+--concatenating 
+scala> val a =100
+a: Int = 100
+
+scala> val b="Hello"
+b: String = Hello
+
+scala> val c = b+","+a
+c: String = Hello,100
+
+	
+	2.	LAZY VAL 
+		============
+it means it wont be evaluated until called 
+
+scala> lazy val a={println("evaluated");5}
+a: Int = <lazy>
+
+
+once makes reference it will show up
+scala> a
+evaluated
+res0: Int = 5
+
+lets type a again
+scala> a
+res2: Int = 5
+
+this time evaluated won't come up ,it only takes one indication and subsequent calls will have that assignment 
+
+there is nothing called lazy var 
+
+scala> lazy var b={println("evaluated");5}
+<console>:1: error: lazy not allowed here. Only vals can be lazy
+lazy var b={println("evaluated");5}
+
+
+vi LazyVal.scala
+val a =10 +b
+val b=19
+println(a)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala LazyVal.scala 
+/Users/pbishwal/Documents/Techie/SparknScala/scala/src/LazyVal.scala:1: warning: Reference to uninitialized value b
+val a =10 +b
+           ^
+one warning found
+10
+
+here warning becoz b is trying to be evaluated but it is declared next 
+so, we can declare it  as lazy 
+
+vi LazyVal.scala
+
+lazy val a =10 +b
+lazy val b=19
+println(a)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala LazyVal.scala 
+29
+
+
+
+scala> var divisor =0
+divisor: Int = 0
+
+scala> lazy val quotient = 40/divisor
+quotient: Int = <lazy>
+
+scala> println(quotient)
+java.lang.ArithmeticException: / by zero
+  at .quotient$lzycompute(<console>:12)
+  at .quotient(<console>:12)
+  ... 29 elided
+
+but since the first indication failed scala is giving another attempt to make it correct 
+
+scala> divisor=2
+divisor: Int = 2
+
+scala> println(quotient)
+20
+
+Conclusion:
+1.lazy val will not be evaluated until referenced 
+2.any subsequent calls to the val will return the same value when initially called upon
+3.there is nothing called as lazy var 
+4.lazy val can be forgiving if an exception happens 
+
+
+	3.	Bending Val and Var to your will
+	  	===============================
+
+scala> val `my greatest gift in dollars` =500
+my greatest gift in dollars: Int = 500
+
+Valid OPCHAR
+---
+unicode characters from \u0020 - \u007F
+http://unicode.org/charts/PDF/U0000.pdf 
+
+
+scala> val isThisMySalaryPerYear_? =5000
+isThisMySalaryPerYear_?: Int = 5000
+
+scala> val thisShouldBeMyRaise_! = isThisMySalaryPerYear_? + 50000
+thisShouldBeMyRaise_!: Int = 55000
+
+backticks can be used to create variables which are reserved keywords in scala 
+scala> val `import` = 10
+import: Int = 10
+
+subsequent reference shd have backticks 
+scala> println(`import`)
+10
+
+scala> val `void`=100
+void: Int = 100
+
+scala> val `false` = true
+false: Boolean = true
+
+scala> val `return`=90
+return: Int = 90
+
+scala> if (`false`) `void` else `return`
+res3: Int = 100
+
+conclusion:
+1. val and var can have spaces ,and other valid identifier characters ,including opchars if surrouned by backtick (`)
+2. they may be referenced without backtick if not reserved ,otherwise need to be included 
+3. any val or var ,without a backtick ,can include a valid scala identifier known as OpChar if followed by an _ 
+
+
+
+	4.  Scala DataTypes 
+		================
+
+scala> val b:Byte=10
+b: Byte = 10
+
+scala> val b:Byte=127
+b: Byte = 127
+
+scala> val b:Byte=128
+<console>:11: error: type mismatch;
+ found   : Int(128)
+ required: Byte
+       val b:Byte=128
+                  ^
+
+byte max - 127
+
+scala> val maxShort:Short =32767
+maxShort: Short = 32767
+
+scala> val maxShort:Short =32768
+<console>:11: error: type mismatch;
+ found   : Int(32768)
+ required: Short
+       val maxShort:Short =32767
+                          ^
+
+integer type are by default you neednt to specify like byte or short (coerce)
+scala> val intValue=2083
+intValue: Int = 2083
+
+scala> val g:Long=3010233
+g: Long = 3010233
+
+scala> val g=3010233L
+g: Long = 3010233
+
+scala> val g=3010233:Long
+g: Long = 3010233
+
+scala> val g=3010233l -> small l 
+g: Long = 3010233
+
+
+scala> val floatValue =32.0f
+floatValue: Float = 32.0
+
+scala> val floatValue =32.0F
+floatValue: Float = 32.0
+
+scala> val floatValue:Float =32.0
+<console>:11: error: type mismatch;
+ found   : Double(32.0)
+ required: Float
+       val floatValue:Float =32.0
+                             ^
+
+-> fr float f/F must be added 
+
+
+for decimals double are by default 
+
+scala> val d =2093.9
+d: Double = 2093.9
+
+scala> val d =2093.9D
+d: Double = 2093.9
+
+scala> val d =2093.9d
+d: Double = 2093.9
+
+scala> val c1='\u03B8'
+c1: Char = θ
+
+
+scala> 1+7
+res4: Int = 8
+
+treating it as an object overloading +
+scala> 1.+(7)
+res5: Int = 8
+
+scala> -5.abs
+res6: Int = 5
+
+scala> Math.abs(-5). // Math is class ,abs is static method 
+res7: Int = 5
+
+conclusions 
+primitive assignments are inferred 
+primitive may be wrapped to give extra functionality 
+
+
+	5.  if elseif else
+		============
+Priyabrats-MacBook-Air:src pbishwal$ vi oldIfStatement.scala
+
+val a=10
+var result=""
+if (a<10) result ="less than 10"
+else if(a>10) result ="Greater than 10"
+else result="It is 10!"
+println(result)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala oldIfStatement.scala
+It is 10!
+
+Let's write it in a functional Style 
+here we are directly assigning result with the if else and result declared as val 
+vi newIfStatement.scala
+
+val a=10
+val result=	if (a<10) "less than 10"
+			else if(a>10) "Greater than 10"
+			else "It is 10!"
+println(result)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala newIfStatement.scala 
+It is 10!
+
+conclusion:
+1. if else exist like other lang
+2. can be used in an imperative fashion
+3. can be used in a functional fashion and assigned to value or variable 
+
+
+	6.	while,do while
+		================
+
+Priyabrats-MacBook-Air:src pbishwal$ vi whileLoops.scala
+
+var a=10
+var result =""
+while (a>0) {
+        result =result +a
+        if (a>1) result=result +","
+        a=a-1
+}
+println(result)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala whileLoops.scala 
+10,9,8,7,6,5,4,3,2,1
+
+lets try something different here we can make whileLoops unusable 
+
+vi functionalLoops.scala
+
+val result =(1 to 10).reverse.mkString(",")
+println(result)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala functionalLoops.scala 
+10,9,8,7,6,5,4,3,2,1
+
+can also be written as 
+val result =(10 to 1 by -1).mkString(",")
+Priyabrats-MacBook-Air:src pbishwal$ scala functionalLoops.scala 
+10,9,8,7,6,5,4,3,2,1
+
+
+vi doWhileLoops.scala
+
+var a=10
+var result =""
+do
+{
+	result =result +a
+	if (a>1) result=result +","
+		a=a-1
+}while (a>0) 
+println(result)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala doWhileLoops.scala 
+10,9,8,7,6,5,4,3,2,1
+
+lets change a=0  instead of 10
+
+Priyabrats-MacBook-Air:src pbishwal$ scala doWhileLoops.scala 
+0
+becoz do while is executed atleast once and it sets result =0 inside the do 
+
+
+

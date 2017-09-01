@@ -1,0 +1,22 @@
+To write dataframe contents to Teradata follow the below steps.
+
+Copy the Teradata JDBC driver files to the server. Use scp
+eg: 
+Step 1
+scp <jdbc files> kkumar9@pv31a00is-bastion.isg..com:/Users/kkumar9/
+Step 2
+
+scp <jdbc files> kkumar9@pv39p00it-primesadmin004.rock.com:/Users/kkumar9
+
+spark-shell --master yarn --driver-memory 24g --driver-cores 2 --executor-memory 28g 
+--executor-cores 2 --num-executors 300 --queue adhoc.applemusic_analytics_hadoop 
+--conf spark.network.timeout=600s --conf spark.sql.shuffle.partitions=1000 
+--conf spark.yarn.executor.memoryOverhead=2048 
+--jars /Users/kkumar9/tdjars/tdgssconfig.jar,/Users/kkumar9/tdjars/terajdbc4.jar
+
+val connectionProperties = new java.util.Properties()
+    connectionProperties.setProperty("user", "<teradata user name>")
+    connectionProperties.setProperty("password", "<teradata password>")
+
+finalresults.coalesce(1).write.mode("append").option("driver","com.teradata.jdbc.TeraDriver").jdbc("jdbc:teradata://EDWITS.corp.apple.com", <"teradata table name">, connectionProperties)
+spark-shell --master yarn --driver-memory 24g --driver-cores 2 --executor-memory 28g --executor-cores 2 --num-executors 300 --queue adhoc.applemusic_analytics_hadoop --conf spark.network.timeout=600s --conf spark.sql.shuffle.partitions=1000 --conf spark.yarn.executor.memoryOverhead=2048 --jars /Users/kkumar9/tdjars/tdgssconfig.jar,/Users/kkumar9/tdjars/terajdbc4.jar -i <(echo 'val startDate = "'$startDate'"'; echo 'val endDate = "'$endDate'"';cat us19_daily_weekly_aggr.scala)

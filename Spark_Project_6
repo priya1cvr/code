@@ -169,3 +169,21 @@ When do we give away an executor is set using spark.dynamicAllocation.executorId
 To conclude, if we need more control over the job execution time, monitor the job for unexpected data volume the static numbers would help. By moving to dynamic, the resources would be used at the background and the jobs involving unexpected volumes might affect other applications.
 
 
+
+The memory you need to assign to the driver depends on the job.
+===================================================================
+If the job is based purely on transformations and terminates on some distributed output action like rdd.saveAsTextFile, 
+rdd.saveToCassandra, ... then the memory needs of the driver will be very low. 
+Few 100's of MB will do. The driver is also responsible of delivering files and collecting metrics, 
+but not be involved in data processing.
+
+If the job requires the driver to participate in the computation, 
+like e.g. some ML algo that needs to materialize results and broadcast them on the next iteration, 
+then your job becomes dependent of the amount of data passing through the driver. 
+Operations like .collect,.take and takeSample deliver data to the driver and 
+hence, the driver needs enough memory to allocate such data.
+
+e.g. If you have an rdd of 3GB in the cluster and call val myresultArray = rdd.collect, 
+then you will need 3GB of memory in the driver to hold that data plus some extra room for the functions 
+mentioned in the first paragraph.
+

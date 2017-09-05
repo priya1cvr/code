@@ -1,0 +1,458 @@
+Module 2 : Scala Methods 
+
+	1. Basic Methods
+	   ==============
+
+Method starts with keyword def 
+
+Priyabrats-MacBook-Air:src pbishwal$ vi basicMethod.scala
+
+def add(x:Int ,y:Int):Int ={
+//body of method
+ return(x+y)
+}
+
+println(add(2,3))	   
+
+// Int at end is return type of method = means it is returning something 
+Priyabrats-MacBook-Air:src pbishwal$ scala basicMethod.scala 
+5
+
+def add(x:Int ,y:Int) = x+y
+println(add(2,3))
+
+Reasons to include return types:
+type inferencer inferred the wrong type 
+your method will be called recursively
+your method is overloaded
+
+conclusion
+return keyword is unnecessary 
+last evaluated statement will be returned 
+most of the time return can be ommitted 
+methods are nt funtions 
+
+	2. Types: Any,AnyVal, AnyRef
+	   =========================
+
+vi types.scala
+def add(x:Int,y:Int) = x+y
+def subtract(x:Int,y:Int)=x-y
+println (add(subtract(10,3),subtract(100,32)))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala types.scala 
+75
+
+now lets change type to double 
+def subtract(x:Double,y:Double)=x-y
+Priyabrats-MacBook-Air:src pbishwal$ scala types.scala 
+/Users/pbishwal/Documents/Techie/SparknScala/scala/src/types.scala:3: error: type mismatch;
+ found   : Double
+ required: Int
+
+ so,we can do truncation i.e 
+ println (add(subtract(10,3).toInt,subtract(100,32).toInt))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala types.scala 
+75
+           
+scala> val longValue =778394094904000.0383.round
+longValue: Long = 778394094904000
+
+scala> longValue.toInt
+res0: Int = -8019264
+
+this is because long is 64 bit and int is 32 bit 
+
+conclusion
+----------
+Any is the utmost super type and is the parent of everything
+AnyVal is the parent of the primitives
+AnyRef is same as java.lang.Object in Java
+AnyRef is the parent of all classes written in Java and scala 
+
+
+	3. Different Return Types 
+	   ========================
+vi add2Ints.scala
+
+def add(x:Int,y:Int)={
+  if (x>10) (x+y).toString
+  else x+y
+}
+println(add(4,10))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala add2Ints.scala 
+14
+
+here we don't know 14 is string or Int 
+lets paste above code in scala terminal
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+above code 
+// Exiting paste mode, now interpreting.
+14
+add: (x: Int, y: Int)Any
+
+
+so here we can see return type is Any 
+
+  conclusion :
+  -----------
+  Types returned from a method are inferred 
+  Type inferencer will make the best judgement 
+  If types are different it will find common ancestor 
+
+  
+  4. Unit and Unit Conventions 
+     =========================
+
+unit created using () 
+the type is inferred called unit
+
+scala> ()
+
+scala> val g=()
+g: Unit = ()
+
+scala> val g:Unit=()
+g: Unit = ()
+
+Analogy in Java is Void 
+
+scala> val a = println("scala")
+scala
+a: Unit = ()
+So,here you can see println takes Any type but returns Unit ie void 
+
+scala> def add(x:Int,y:Int)={
+     |   if (x>10) println(x)
+     |   else x+y
+     | }
+add: (x: Int, y: Int)AnyVal
+
+Note Here : println return type is Unit & x+y return type is Int , so where there are 2 different return types 
+then parent type is returned i.e AnyVal 
+
+Unit is an Object and can be used any where e.g
+scala> def nonsense(g:Unit):Int=40
+nonsense: (g: Unit)Int
+
+scala> nonsense(():Unit)
+res2: Int = 40
+
+unitMethods.scala
+
+def add(x:Int,y:Int)={
+x+y
+}
+def badAdd(x:Int,y:Int){
+ x+y
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scala unitMethods.scala 
+()
+This retuns an () i.e Unit this is becoz of missing equals sign (=) in badAdd method 
+
+lets add below to above code 
+def addUnit(x:Int,y:Int):Unit=x+y
+println(addUnit(5,6))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala unitMethods.scala 
+()
+()
+
+Conclusion:
+Unit don't give you anything 
+Analogous to Java's Void
+Unit is actually an Object 
+Unit's Full type name is scala.Unit 
+Unit has one Value:()
+Whenever you see () its a Unit 
+
+
+	5.  Recursion 
+	   ==========
+vi factorial.scala
+def factorial(n:BigInt):BigInt={
+ if (n==0|| n==1) 1
+ else n*factorial(n-1)
+}
+
+println(factorial(5))
+println(factorial(100)) // prints 0 if return type is Int 
+println(factorial(10000)) // stackover flow error as its factorial is not handled in stack 
+
+conclusion:
+recursive method requires return type signature i.e :BigInt as provided else will give error 
+recursive methods can either be infinite
+recursive methods can terminate on a base case
+recursive methods have limited stack space 
+
+	6. Tail Optimised Recursion 
+	   ========================
+
+redesign factioral above 
+
+vi tailCallRecusion.scala
+import scala.annotation.tailrec
+@tailrec
+def factorial(n:BigInt,acc:BigInt):BigInt={  // acc is accumulator 
+ if (n==0|| n==1) acc
+ else  factorial(n-1,acc*n)  
+}
+println(factorial(5,1))
+println(factorial(10000,1)) // 1 is initial value of acc 
+
+-If your recursion is modeled in a tail recursive way then scala compiler will optimise the code for you in a loop
+so that the stack is really filled 
+-if u dont use acc but import annotation then it will give error 
+
+conclusion 
+recursive method may run out of stack memory 
+convert recursive method into a tail recursive method
+Tail recursive method after evaluation must be returned i.e factorial(n-1,acc*n)  
+use @scala.annotation.tailrec for compilation assistance 
+
+
+	7. Methods in Methods
+	   ===================
+lets modify above a bit 	   
+vi tailCallRecusion.scala	   
+import scala.annotation.tailrec
+@tailrec
+def fact(n:BigInt,acc:BigInt):BigInt={  // acc is accumulator 
+ if (n==0|| n==1) acc
+ else  fact(n-1,acc*n)  
+}
+def factorial(n:Int)=fact(n,1) // cleaner code 
+
+println(factorial(5))
+println(factorial(10000))  
+ --------
+lets call method inside a method 
+
+vi methodInMethod.scala
+import scala.annotation.tailrec
+def factorial(n:Int)={
+@tailrec
+def fact(n:BigInt,acc:BigInt):BigInt={
+ if (n==0|| n==1) acc
+ else  fact(n-1,acc*n)
+}
+fact(n,1)
+}
+
+println(factorial(5))
+println(factorial(10000))
+
+conclusion:
+ methods can be hidden inside another method 
+ outside method has exclusive access to inner method 
+
+
+ 8. Bending Method Names to your will
+ 	===================================
+
+scala> def `summation of` (x:Int,y:Int)=x+y
+summation$u0020of: (x: Int, y: Int)Int
+
+scala> summation of(3,4)
+<console>:12: error: not found: value summation
+       summation of(3,4)
+       ^
+
+scala> `summation of`(3,4)
+res4: Int = 7
+ ------
+
+scala> def areWeLikingScala_? = true
+areWeLikingScala_$qmark: Boolean
+
+scala> val status =if(areWeLikingScala_?) "Nice" else "ugh"
+status: String = Nice
+
+using reserved keyword
+
+scala> def `return` (x:Double,y:Double) = (x+y+4.0).toString
+return: (x: Double, y: Double)String
+
+scala> val g=`return`(4.0,4.0)
+g: String = 12.0
+
+Conclusion:
+Methods can have spaces and other valid identifier chars,including Opchars if surrounded by backtick(`)
+Methods can referenced by backtick if dey are not reserved .Otherwise include backtick 
+Any method without a backtick ,can include an Opchar if followed by an underscore 
+
+
+	9. Operator Overloading 
+	   =====================
+
+gives us power to name our own method 
+
+scala> def +(x:Int,y:Int)=x+y
+$plus: (x: Int, y: Int)Int
+	   
+internally it is called : $plus:
+
+scala> def ~~+:>(x:String) = x.size
+$tilde$tilde$plus$colon$greater: (x: String)Int
+
+scala> 2+5  // using operator overloading without realising 
+res5: Int = 7
+
+scala> 2.+(5) // invoking method + using object 2 and passing 5   
+res6: Int = 7
+
+Conclusion:
+Operator overloading is using operators as method names 
+Operator overloading will interpret the name into $name or $unicode
+you have been using operator overloading without realising 
+
+	10. Method Overloading 
+	   =====================
+same method different paramter i.e different inside paramter 
+
+vi methodOverloading.scala
+def addNum(x:Int)=x+1
+def addNum(x:Double)=x+30.0
+def addNum(z:String)=z+19
+
+println(addNum(30))
+println(addNum(38.0))
+println(addNum("Hello "))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala methodOverloading.scala
+31
+68.0
+Hello 19
+
+	11. Named & Default Arguments
+		=========================
+
+
+def processNumbers(b:Boolean,x:Int,y:Int)=if (b) x else y
+println(processNumbers(true,10,41))
+
+gives 10
+In scala we can specify the order of paramter call by Name  
+println(processNumbers(x=10,y=41,b=true))  // changing order of arguments 
+
+def add(z:Int,y:Int=10)=z+y // y is default arg
+println(add(4,3))
+println(add(30))
+
+gives 7 and 40
+
+Conclusion:
+Named arguments allow call by method paramter Name 
+Named arg allow calls in any order 
+Default arguments specify default values in the method declaration 
+In case default arguments are difficult to call, use named arguments to assist 
+
+
+	12. Is Instance of / As Instance of
+		================================
+
+scala> 3.isInstanceOf[Int]
+res7: Boolean = true
+
+scala> 3.isInstanceOf[Double]
+res8: Boolean = false
+
+scala> "3".isInstanceOf[Boolean]
+res9: Boolean = false
+
+scala> "3".isInstanceOf[String]
+res10: Boolean = true
+
+scala> "3".isInstanceOf[CharSequence]
+res11: Boolean = true
+
+vi isAndAsInstance.scala
+val g:Any = "Ice ,ice ,Call me Maybe"
+//val h:String=g // will cause type mismatch ,so we need to cast as below 
+val h:String = g.asInstanceOf[String]
+
+def decide(x:Any) = if(x.isInstanceOf[Int] x.asInstanceOf[Int] + 1 else -1 
+
+println(decide(4))
+println(decide("hello"))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala isAndAsInstance.scala
+5
+-1
+
+Conclusion:
+isInstanceOf will return Boolean whether Object is an instance of a type 
+asInstanceOf will convert object to a certain type 
+asInstanceOf will require that object is convertible to a type 
+Misuse of asInstanceOf will result in class cast exception 
+
+
+	13. Parameterised Types on Methods 
+		===============================
+	gives type safety while calling on Method 
+	in java called Generic types , c++ called templates 
+
+vi parameterisedTypes.scala
+def decide(b:Boolean,x:Any,y:Any):Any = if (b) x else y 
+
+println(decide(true,"A","B"))
+println(decide(false,3,10))
+println(decide(true,'c','d'))
+
+Priyabrats-MacBook-Air:src pbishwal$ scala parameterisedTypes.scala
+A
+10
+c
+
+def getNextChar(c:Char)=(c+1).toChar
+println(getNextChar(decide(true,'c','d'))) // gives type mismatch as decide returns Any while getNextChar expects char 
+
+lets make a workaround 
+
+val result =decide(true,'c','d')
+if(result.isInstanceOf[Char]) {
+ val charResult=result.asInstanceOf[Char]
+ println(getNextChar(charResult))
+
+}
+
+gives o/p as needed 
+
+Lets make it to parameterised type 
+scala> def decide[T](b:Boolean,x:T,y:T):T = if (b) x else y 
+decide: [T](b: Boolean, x: T, y: T)T
+
+scala> 
+
+scala> decide(true,4.0,5.0)
+res12: Double = 4.0
+//both r double so return double 
+
+scala> decide(true,4.0,"G")
+res13: Any = 4.0
+// calls with double and String ,so returns Any which is the common parent 
+
+scala> decide(true,"A","B")
+res14: String = A
+//both r string so return double 
+
+
+scala> decide(true,40,'c')
+res15: Int = 40
+//returns int due to Int promotion of character 
+
+Conclusion :
+Parameterised types maintain type consistency 
+parameterised type use [] not <>
+parameterised type  equivalent nearly to java generics ,c++ templates 
+prefer use of single letter A,B,C,D,E,T
+
+
+
+
+

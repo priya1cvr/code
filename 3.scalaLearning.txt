@@ -1,0 +1,731 @@
+Module 3 : Scala Classes 
+
+	1. Classes
+	   ========
+	   classes are blue prints 
+	   everything in scala classes is public 
+
+Priyabrats-MacBook-Air:src pbishwal$ vi employee.scala
+ class Employee(firstName:String,lastName:String)
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Employee.scala 
+Priyabrats-MacBook-Air:src pbishwal$ javap -p Employee
+Compiled from "employee.scala"
+public class Employee {
+  public Employee(java.lang.String, java.lang.String); // constructor 
+}
+so where is the constructor in scala? 
+firstName:String,lastName:String is constructor 
+Now lets use the class 
+
+vi EmployeeScript.scala
+val adax= new Employee("Ram","Naresh")
+println(adax)
+
+cp: claspath  , .(dot) is the current directory you are running 
+Priyabrats-MacBook-Air:src pbishwal$ scala -cp . EmployeeScript.scala
+Employee@19e1023e
+
+lets add the below and compile again 
+println(adax.firstName)
+// error scala:2: error: value firstName is not a member of Employee
+
+this is not a way to access the accessor in scala 
+	Uniform Access Principle:
+	-----------
+	It states that variables and parameterless methods should be accessed using same syntax .
+	in other words the fields and getters are going to have same name 
+
+so to prevent the error go. to employee.scala  and add val infront of firstName and var in front of lastName 
+class Employee(val firstName:String, var lastName:String){}
+
+and in EmployeeScript.scala
+val adax = new Employee("Ram", "Naresh")
+println(adax.firstName)
+adax.lastName = " Byron ,Countess" 
+println(adax.lastName)
+Priyabrats-MacBook-Air:src pbishwal$ 
+
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac employee.scala
+Priyabrats-MacBook-Air:src pbishwal$ javap -p Employee
+Compiled from "employee.scala"
+public class Employee {
+  private final java.lang.String firstName;
+  private java.lang.String lastName;
+  public java.lang.String firstName();
+  public java.lang.String lastName();
+  public void lastName_$eq(java.lang.String);  // when b is changed 
+  public Employee(java.lang.String, java.lang.String);
+}
+
+now it gives the o/p
+Priyabrats-MacBook-Air:src pbishwal$ scala -cp . EmployeeScript.scala
+Ram
+ Byron ,Countess
+
+ Conclusion:
+ ---
+ Classes are templates or bluePrints 
+ val creates accessors ,access to the inner state
+ var creates mutators ,allowing change to inner state 
+ javap -p is a great utility to see java byte code 
+
+
+ 	2. Java Getters and Setters 
+ 	   ==========================
+In Java 
+public class Person{
+	private int age;
+	public void setAge(int age){ // mutator
+		this.age=age; // access private variable 
+	}
+	public int getAge(){  //accessor 
+		return age ;
+	}
+}
+
+in scala we need to import a property  as 
+
+import scala.beans.BeanProperty
+class Employee(@BeanProperty val firstName:String, @BeanProperty var lastName:String){}
+
+Priyabrats-MacBook-Air:src pbishwal$ javap -p Employee
+
+public class Employee {
+  private final java.lang.String firstName;
+  private java.lang.String lastName;
+  public java.lang.String firstName();
+  public java.lang.String lastName();
+  public void lastName_$eq(java.lang.String);
+  public java.lang.String getFirstName();  // getter for firstName in Java Fomat  
+  public java.lang.String getLastName();   // getter for firstName in Java Fomat  
+  public void setLastName(java.lang.String);   // setter for lastName in Java Fomat  
+  public Employee(java.lang.String, java.lang.String);
+}
+
+there is getter in firstName and the reason is it has val in firstName 
+and there is getter and setter for lastName as it is var 
+
+  Conclusion:
+  ---
+  use @scala.beans.BeanProperty if you need java style getters and setters 
+  Apply @BeanProperty  annotation to the property 
+  if applied to val @BeanProperty will create getter 
+  if applied to var @BeanProperty  will create setter 
+
+
+  	3. Constructors
+  	   ============
+  	   Specialised method used to construct an object 
+ vi Employee.scala  
+ import scala.beans.BeanProperty
+class Employee(@BeanProperty val firstName:String, @BeanProperty var lastName:String)
+between () - is primary constructor 
+
+so ,adding val title:String and compiling EmployeeScript.scala will give error as it has 2 values inside but the 
+class has 3 variables . so , lets do as below 
+
+import scala.beans.BeanProperty
+class Employee(@BeanProperty val firstName:String, 
+                @BeanProperty var lastName:String,
+                val title:String) {
+        def this(firstName:String,lastName:String) =this(firstName,lastName,"Programmer")
+        // this is an auxillary constructor ,title is hardcoded 
+}
+
+lets add below at end of EmployeeScript.scala
+println(adax.title )
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -cp . EmployeeScript.scala
+Ram
+ Byron ,Countess
+Programmer
+
+Now ,lets change it 
+import scala.beans.BeanProperty
+
+class Employee(@BeanProperty val firstName:String,
+                @BeanProperty var lastName:String,
+                val title:String) {
+// Atypical form
+def this(firstName:String,lastName:String) = {this(firstName, lastName, "Programmer")
+                                                println("Side effect")
+                                                } // swapping above 2 lines will give erro 
+//anything that has multi line needs to be in a block
+//Typical form
+//def this(firstName:String,lastName:String) = this(firstName, lastName, "Programmer")
+}
+
+compile again 
+Priyabrats-MacBook-Air:src pbishwal$ scala -cp . EmployeeScript.scala
+Side effect
+Ram
+ Byron ,Countess
+Programmer
+
+
+  Conclusion:
+  Ancilliary Constructors looks like method named this 
+  Primary Constructors are designed for all information upfront 
+  Ancilliary Constructors need to find a way to invoke Primary Constructors
+  call another constructor by invoking this(...)
+  if an Ancilliary Constructor is multi lined ,the 1st line must be a call to this(...)
+
+
+  4. Constructor Named and Default Arguments
+  	 =======================================
+
+  	lets invoke  EmployeeScript.scala by using named parameter by adding below lines 
+
+val dennis = new Employee(lastName="Ritchie",firstName="Dennis")
+println(s"The first name is ${dennis.firstName}")
+println(s"The last name is ${dennis.lastName}")
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -cp . EmployeeScript.scala
+Side effect
+Ram
+ Byron ,Countess
+Programmer
+Side effect
+The first name is Dennis
+The last name is Ritchie
+
+- lets comment the ancialiray consturctor and give default value of title  in the Employee.scala 
+as val title:String="Programmer"
+
+it will give the same o/p as above
+
+  Conclusion:
+  --------
+  Named args allow calls by constructor parameter name 
+  Named args allow calls in any order 
+  Default args specify default values in the constructor declaration 
+  In case default arguments are difficult to call ,use named arguments to assist 
+
+
+  	5. Methods in Classes
+  	   ===================
+
+ Lets add below in Employee.scala
+ def fullName=s"$firstName $lastName"
+and add the below print in EmployeeScript.scala
+println(adax.fullName)
+println(dennis.fullName)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -cp . EmployeeScript.scala
+Ram
+ Byron ,Countess
+programmer
+The first name is Dennis
+The last name is Ritchie
+Ram  Byron ,Countess  // print full name
+Dennis Ritchie		  // print full name
+
+lastName was Var earlier , lets Now make it val to make it unmutable 
+So,when lastName is val then how to change it ?? 
+Ans -create a method as below in Employee.scala
+def changeLastName(ln:String) = new Employee(firstName,ln)
+
+also in EmployeeScript.scala change the lastName as 
+val adax = new Employee("Ram", "Naresh")
+println(adax.firstName)
+val newadax=adax.changeLastName(" Byron ,Countess") // new object 
+println(newadax.lastName)
+println(newadax.title)
+val dennis = new Employee(lastName="Ritchie",firstName="Dennis")
+println(s"The first name is ${dennis.firstName}")
+println(s"The last name is ${dennis.lastName}")
+println(adax.fullName)
+println(newadax.fullName)
+println(dennis.fullName)
+
+
+// also change whereever adax used to newadax
+
+here you get below error :
+EmployeeScript.scala:5: error: value changeLastName is not a member of Employee
+
+script used something called fsc i.e fast compiler which is a daemon runs in background also is a cache which caches compiled code so it doesn't need to recompile .Its wonderful thing but 
+issue is sometimes it does so fast that it doesnt get notified of the changes every time we make new code 
+so lets not use the fast compile and compile it using below 
+
+scala -nc EmployeeScript.scala
+Ram
+ Byron ,Countess //println(newadax.lastName)
+Programmer // println(newadax.title)
+The first name is Dennis
+The last name is Ritchie
+Ram Naresh  // original adax contains original first and last Name 
+Ram  Byron ,Countess // change newadax contains new first and last Name 
+Dennis Ritchie
+
+Here we get to see what happened in the past because we have a copy of it ie adax and newadax
+
+lets comment changeLastName and add new method called copy method 
+def copy(firstName:String =this.firstName, lastName:String =this.lastName,title:String=this.title)
+ = new Employee(firstName,lastName,title)
+
+lets go to EmployeeScript adn we can specify the named parameter we wish to copy
+val newadax=adax.copy(lastName =" Byron ,Countess",title="Coder")
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc EmployeeScript.scala
+Ram
+ Byron ,Countess 	//println(newadax.lastName)
+Coder   			// println(newadax.title)
+The first name is Dennis
+The last name is Ritchie
+Ram Naresh 			 // original adax contains original first and last Name
+Ram  Byron ,Countess // change newadax contains new first and last Name
+Dennis Ritchie
+
+ Conclusion:
+ Methods are used in classes and have access to internal State 
+ Methods can also use default and named parameters for added functionality 
+
+ 	
+ 	6. PreConditions ,Exceptions And Exception Handling
+ 	   =================================================
+
+The problem with current Employee.scala is users of our code can provide empty string if they feel like 
+if we want to be defensive then we can go with method called  require
+add below in Employee.scala
+
+require(firstName.nonEmpty,"First Name can't be empty")
+require(lastName.nonEmpty,"Last Name can't be empty")
+require(title.nonEmpty,"Title can't be empty")
+// it evaluates to boolean ,2nd param is message , this is in primary constructor namespace
+
+add below in EmployeeScript
+new Employee("Bonno","","Singer")
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Employee.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc EmployeeScript.scala
+Ram
+ Byron ,Countess
+Coder
+The first name is Dennis
+The last name is Ritchie
+Ram Naresh
+Ram  Byron ,Countess
+Dennis Ritchie
+java.lang.IllegalArgumentException: requirement failed: Last Name can't be empty
+
+Note that it gives exception 
+so lets catch the exception in EmployeeScript
+try{
+  new Employee("Bonno","","Singer")
+} catch{
+    case iae:IllegalArgumentException => println(iae.getMessage) // uses pattern matching 
+}
+finally {
+        println("Continuing with our program"
+}
+
+now runs sucessfully 
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc EmployeeScript.scala
+Ram
+ Byron ,Countess
+Coder
+The first name is Dennis
+The last name is Ritchie
+Ram Naresh
+Ram  Byron ,Countess
+Dennis Ritchie
+requirement failed: Last Name can't be empty  
+
+In Scala all are run time excpetions 
+
+
+Lets add another in Employee.scala
+if(title.contains("Senior") || title.contains("Junior"))
+        throw new IllegalArgumentException("Title can't be Junior or Senior")
+
+add below in EmployeeScript
+try{
+  new Employee("Linus","Torvalds","Senior C Progrmaer")
+} catch{
+    case iae:IllegalArgumentException => println(iae.getMessage)
+}
+finally {
+        println("Continuing with our program")
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc EmployeeScript.scala
+requirement failed: Last Name can't be empty
+Continuing with our program
+Title can't be Junior or Senior
+Continuing with our program
+
+  Conclusion:
+  ------
+  require checks for quality of parameters in a method or constructor 
+  require will throw an IllegalArgumentException
+  try and catch uses pattern matching to determine if a particular Exception is thrown
+  Exceptions are thrown with the keyword throw and an exception object 
+
+
+  	7. SubClassing
+  	   =============
+  Same as java with twist 
+  go to Employee.scala 
+  case class Department(val name:String)
+
+class Manager(firstName:String, lastName:String,title:String,val department:Department) extends
+        Employee(firstName,lastName,title)
+
+subclass has IS-A relationship with parent class 
+
+add below in EmployeeScript.scala
+val mathematics = new Department("Mathematics")
+val alan = new Manager("Alan","Turing","Mathematician,Logician",mathematics)
+
+println(alan.department.name)
+
+o/p :
+Mathematics // println(alan.department.name)
+ 
+Lets add manager obj to Employee reference  in EmployeeScript.scala
+
+val alan:Manager = new Manager("Alan","Turing","Mathematician,Logician",mathematics)
+
+println(alan.department.name)
+
+val alanEmployee:Employee = alan // point to Employee obj
+println(adax.firstName)
+println(newadax.firstName)
+println(dennis.firstName)
+println(alan.firstName)
+println(alanEmployee.firstName)
+
+o/p :  
+Mathematics //println(alan.department.name)
+Ram
+Ram
+Dennis
+Alan
+Alan
+
+if we add below 
+println (alanEmployee.department.name) 
+// gives error as alanEmployee is Employee reference not Manager ref
+// value department s not member of Employee
+
+What we are doing here is polymorphism also applies to methods 
+
+add in EmployeeScript.scala 
+
+def extractFirstName(e:Employee) = e.firstName
+println(extractFirstName(adax))
+println(extractFirstName(dennis))
+println(extractFirstName(alan))
+
+o/p
+Ram
+Dennis
+Alan
+
+In java each class name has one file but here we have 3 classes in same file so lets rename the 
+Employee.scala 
+
+Priyabrats-MacBook-Air:src pbishwal$ mv Employee.scala Models.scala
+Priyabrats-MacBook-Air:src pbishwal$ rm *.clas*
+Priyabrats-MacBook-Air:src pbishwal$ scalac Models.scala 
+Priyabrats-MacBook-Air:src pbishwal$ ls -lrt *class*
+-rw-r--r--  1 pbishwal  staff  1149 Sep  6 22:00 Manager.class
+-rw-r--r--  1 pbishwal  staff  4706 Sep  6 22:00 Employee.class
+-rw-r--r--  1 pbishwal  staff   511 Sep  6 22:00 Employee$.class
+-rw-r--r--  1 pbishwal  staff   826 Sep  6 22:00 Department.class
+
+You needn't to create one file for one class in scala 
+
+   Conclusion:
+   ----------
+   extends keyword is used to subclass a class from another class
+   Attributes belonging to super class are sent to superclass constructor 
+   Inheritance must have Is-a Relationship
+   All Subclasses are polymorphic ,by assignment or by method call 
+   You can have multiple classes in one file 
+
+
+
+   	8. Overriding Methods
+   	   ====================
+   	   Redefine methods in sub class
+   	   override fullName 
+   	   Models.scala
+class Manager(firstName:String, lastName:String,title:String,val department:Department) extends
+Employee(firstName,lastName,title) {
+        override def fullName =s"$firstName $lastName ,${department.name} Manager"
+}
+
+go to EmployeeScript.scala add at end
+
+println(adax.fullName)
+println(newadax.fullName)
+println(dennis.fullName)
+println(alan.fullName)
+println(alanEmployee.fullName)
+
+o/p
+Ram Naresh
+Ram  Byron ,Countess
+Dennis Ritchie
+Alan Turing ,Mathematics Manager
+Alan Turing ,Mathematics Manager
+
+what matters is concrete implementation of each object 
+
+lets override copy method in Models.scala
+class Manager(firstName:String, lastName:String,title:String,val department:Department) extends
+        Employee(firstName,lastName,title) {
+        override def fullName =s"$firstName $lastName ,${department.name} Manager"
+
+    override def copy(firstName:String =this.firstName, lastName:String =this.lastName,title:String=this.title)
+ = new Manager(firstName,lastName,title,Department("Toys"))
+
+}
+
+add below in EmployeeScript.scala
+val alanNewJob = alan.copy(title="Supreme Encryption Specialist")
+println(alanNewJob.title)
+
+o/p 
+Supreme Encryption Specialist
+
+   Conclusion
+   ---------
+   override keyword is mandatory 
+   Overridden methods must look the same as the superclass method it is overriding 
+   Overridden methods are created to change the implementation of superclass methods 
+   Regardless of the reference correct method will be called 
+
+
+   9. Equals ,toSring,HashCode
+      ==========================
+   go to EmployeeScript.scala
+val anotherAda = new Employee("Ram","Byron ,Countess","Programmer")
+println(newadax.equals(anotherAda)) // false 
+o/p
+false
+
+this gives false so go to Models.scala and add some quality logic inside Employee class 
+
+override def equals(x:Any):Boolean ={
+  if (!x.isInstanceOf[Employee] false
+  else {
+    val other =x.asInstanceOf[Employee]
+    other.firstName.equals(this.firstName) &&
+        other.lastName.equals(this.lastName) &&
+        other.title.equals(this.title)
+   }
+}
+
+// shd give true ( i am getting false check again)
+
+lets add object equality 
+println(newadax == anotherAda)
+println(newadax != anotherAda)
+
+in models.scala equals can be changed to == 
+
+println(newadax eq anotherAda) // eq points to reference equality ,shd give false 
+
+ hashcode  add it in Models.scala inside Employee Class 
+
+ override def hashCode:Int ={
+   var result=19
+   result =31*result + firstName.hashCode 
+   result =31*result + lastName.hashCode
+   result =31*result + title.hashCode
+   result
+}
+
+println(newadax.hashCode == anotherAda.hashCode)
+println(adax.hashCode != anotherAda.hashCode)
+
+in models.scala and add in Employee Class 
+ override def toString = s"Employee($firstName $lastName ,$title)"
+
+in EmployeeScript.scala
+println(newadax.toString)
+o/p
+Employee(Ram  Byron ,Countess ,Coder)
+
+ Conclusion:
+ -------
+ equals test for object equality 
+ instead of equals you can call ==
+ eq is used to test if 2 objects are pointed to same object 
+ hashCode is near unique 32 bit integer that represents the object and used in HashMap and HashSet
+ toString is a String representation of object 
+
+
+ 	10. CASE CLASSES
+ 	    ============
+    We manually coded methods like toString ,hashCode so Case Classes will address it  
+
+   Models.scala
+   case class Department(val name:String)
+
+val toys =  Department("Toys")
+println(toys)
+
+val toys2 = new Department("Toys")
+println(toys2)
+
+println(toys==toys2)
+println(toys.hashcode ==toys2.hashcode)
+o/p
+Department(Toys)
+Department(Toys)
+true
+true
+
+ Note: Case class works without new keyword so you can omit the new keyword for toys and toys2 ref 
+ you can remove val from case class Department(val name:String)
+ 
+ go to EmployeeScript
+ val name = toys match {
+                case Department(n) => n
+                case _ => "Unknown"
+                }
+println(name) 
+val Department(name2) =toys
+println(name2)
+
+o/p
+Toys
+Toys
+
+Limitations of Case Class
+Case Classes can't be subclassed by another case classes 
+
+  Conclusion
+  ----------
+  case classes have automatic equals, toString and hashcode methods
+  you can instantiate a case class with new keyword 
+  if you don't like methods created override your own
+  you can have an automatic pattern matching with case classes 
+
+
+
+  	11. Abstract Classes
+  	    ================
+
+  	   go to Models.scala
+  	   abstract class Person {
+        def firstName:String
+        def lastName:String
+	}
+	class Employee(@BeanProperty val firstName:String,
+                @BeanProperty val lastName:String,
+                val title:String = "Programmer") extends Person {
+
+go to EmployeeScript.scala nd add below 
+since manager extends from Employee and Employee extends from Person so we can assign as below:
+
+val alanPerson:Person = alan
+val adaPerson:Person = newadax
+
+create 2 references of person as above 
+
+     Conclusion:
+     ---------
+     abstract class can't be instianted 
+     abstract class have zero or more abstract methods 
+     abstract methods don't have implementations 
+     any subtype can be assigned to an abstract type reference 
+
+
+    12.  Parameterized types on Classes
+         ==============================
+      lets create a new file Box.scala 
+      case class Box[T](t:T)  // it means Box can accept any types 
+   
+ lets create BoxScript.scala which will make use of Box 
+val intBox = new Box(1) // Box[Int]
+val intBox2:Box[Int]= Box(1)
+val intBox3 = Box(1):Box[Int]
+val intResult:Int = intBox3.t // t is the propety in Box Cla
+val stringBox = new Box("Hello")
+val stringBoxExplicit = Box[String]("Hello") // Box[String]
+val managerBox = Box(new Manager("Kathy" ,"Sierra" ,"Programmer",
+                        Department("Programming Learning and Fun")))
+val doubleBoxBox =Box(Box(4.0)) // Box[Box[Double]]
+val doubleResult:Double = doubleBoxBox.t.t
+print(doubleBoxBox)
+
+o/p
+Box(Box(4.0))
+
+
+HOW about classes with 2 types parameters 
+vi Couple.scala 
+case class Couple[A,B](first:A,second:B)
+
+lets create CoupleScript.scala
+
+val coupleIntString = new Couple(10,"Scala")
+val coupleIntString2:Couple[Int,String] = Couple(10,"Scala")
+val coupleStringString = Couple("one","Two") 
+val coupleDoubleInt = Couple(30.123,3) 
+val coupleStringCoupleIntDouble = Couple("Hello",Couple(3,22.2))
+
+println(coupleStringCoupleIntDouble.second.second) 
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Couple.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc CoupleScript.scala
+22.2
+
+	Conclusion:
+	-----------
+	Parameterized types use [] like methods 
+	Parameterized types are managed by type system 
+	You may have as many as Parameterized types on a class as needed 
+	A Parameterized types can contain another Parameterized types .
+
+
+	13. Parameterized Methods in Classes
+		===================================
+
+lets go to Box.scala
+case class Box[T](t:T) {
+        def coupleWith[U](u:U):Box[Couple[T,U]] =Box(Couple(t,u))
+
+}
+
+
+lets go to BoxScript.scala
+val intBox4 = Box(200)
+val coupleIntStringBox:Box[Couple[Int,String]] = intBox4.coupleWith("Scala") 
+println(coupleIntStringBox.t.first)
+println(coupleIntStringBox.t.second)
+
+o/p
+Box(Box(4.0))200
+Scala
+
+lets go to Couple.scala
+case class Couple[A,B](first:A,second:B){
+        def swap:Couple[B,A] = new Couple(second,first)
+}
+
+go to CoupleScript.scala
+val employeeCouple = Couple(new Employee("John","McCarthy") , 
+                        new Employee("Guido","van Rossum")) 
+println(employeeCouple)
+println(employeeCouple.swap)
+
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc CoupleScript.scala
+22.2
+Couple(Employee(John McCarthy ,Programmer),Employee(Guido van Rossum ,Programmer))
+Couple(Employee(Guido van Rossum ,Programmer),Employee(John McCarthy ,Programmer))
+
+  Conclusion:
+  ----------
+  Parameterized Methods can be used in conjuction with Parameterized Classes 
+  If a type is known at class level ,then it doesn't need to be declared at method level
+  This only brushes the surface on types  and types systems 
+

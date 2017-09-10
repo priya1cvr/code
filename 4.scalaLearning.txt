@@ -1,0 +1,386 @@
+Module 4  & 5 : Scala Objects  & Magical Methods 
+		        =============
+
+    1. Singleton Objects
+       ----------------
+  Objects are instiantied from classes ,without class you can create an object e.g
+  scala> object MyObject
+  defined object MyObject
+ 
+ Singleton objects :Objects created with no class 
+
+scala> val a = MyObject
+a: MyObject.type = MyObject$@161d95c6
+
+scala> val b= MyObject
+b: MyObject.type = MyObject$@161d95c6
+
+scala> a==b
+res8: Boolean = true
+
+scala> a eq b
+res9: Boolean = true
+
+lets create objectScript.scala
+object MyObject{
+        def foo(x:Int,y:Int)=x+y
+}
+
+println(MyObject.foo(5,10))  // object methods in scala 
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc objectScript.scala
+15
+we don't have static keyword in scala 
+You can't extend class from an object 
+but we can extend an object from a class . lets do it in the MyObject.scala
+
+class Employee(val firstName:String ,val lastName:String,val title:String) 
+
+object Knuth extends Employee("Donald" ,"Knuth", "Programmer") 
+
+println(Knuth.firstName)
+println(Knuth.lastName)
+println(Knuth.title)
+
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc objectScript.scala
+15
+Donald
+Knuth
+Programmer
+
+  When do we need to create classes ? 
+Ans: When 
+	- Need to define a template to create multiple instances 
+	- every instance is in charge of its own state 
+
+When do we need to create Objects ? 
+Ans : When 
+	-Need a singleton 
+	-Need a factory pattern  // next section 
+	-Need to implement pattern matching logic 
+	-Need a utility method that doesn't require an instance or state
+	-Need default values
+	-Need a main method 
+
+Main method is an entry point of a program 
+In Java :
+public class Runner{
+	public static void main(String [] args){
+		system.out.println("Hello ! World")
+	}
+}
+Lets create Runner.scala to convert above java class to scala 
+
+since main method is static in Java and we need to convert the same to scala so we are creating an object and 
+putting the main method inside it .As there is no static in scala hence object created .
+By default all ar public in scala 
+void - equivalent is Unit in scala
+
+object Runner{
+	def main(args:Array[String]) :Unit = println("Hello World !")
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Runner.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Runner
+Hello World !
+
+Can we run using java i.e java Runner ? 
+yes but we need something with it .We need to tell java that there is an extra library we need i.e scala-java.jar 
+syntax : java -cp . ":/home/scala-directory jar path "  Runner 
+
+
+pbishwal$ java -cp .:/Users/pbishwal/spark-2.0.2-bin-hadoop2.7/jars/scala-library-2.11.8.jar Runner 
+Hello World !
+
+You can create a Runner without a main decoration 
+Lets create another file called RunnerApp.scala 
+
+object RunnerApp extends App {
+  println("Hello World !!") 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac RunnerApp.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala RunnerApp
+Hello World !!
+
+	Conclusion:
+	----------
+    Objects are Singleton 
+    Objects are scala's replacement for Keyword static 
+    Objects are meant for factories ,defining pattern matching ,defining defaults and main methods 
+    Main methods are always inside of objects 
+    You can forgo the main declaration by having your object extends App 
+
+ 
+  2.  Companion Objects
+      -----------------
+   These are still singleton but they service a class i.e an abstract class or trait 
+   Rule : Object name shd be same as class name and shd be in same file 
+
+   projects can be found at : scalakoans.org
+
+vi SecretAgent.scala
+class SecretAgent(val name:String) {
+        def shoot(n:Int) {
+         import SecretAgent._  //means every method inside SecretAgent is imported  
+         decrementBullets(n)  // can be called as SecretAgent.decrementBullets(n) without import 
+        }
+
+}
+
+object SecretAgent{
+  private var b:Int = 3000
+ 
+  private def decrementBullets(count:Int) {
+        if (b-count <=0 ) b = 0
+        else b = b-count
+  }
+ def bullets = b 
+}
+
+Object SecretAgentRunner extends App{
+ val bond = new SecretAgent("James Bond")
+ val felix = new SecretAgent("Felix Leitner")
+ val jason = new SecretAgent("Jason bourne")
+ val _99 = new SecretAgent("99")
+ val max = new SecretAgent("Max Smart") 
+
+
+  bond.shoot(800)
+  felix.shoot(200) 
+  jason.shoot(150)
+  _99.shoot(150)
+  max.shoot(200) 
+
+println(SecretAgent.bullets)
+
+
+}
+
+We created a runner Object i.e SecretAgentRunner inside  SecretAgent.scala  ? why this is required ? 
+Because a companion object can't have main method 
+
+Benefit : companion object have access to class objects secret information 
+
+lets create another 
+vi SuperHeroes.scala 
+
+class Person(val name:String ,private val superheroName:String) 
+
+object Person{
+  def showMeInnerSecret(x:Person) = x.superheroName
+}
+
+object SuperHeroRunner extends App {
+ val clark = new Person("Clark Kent" ,"Superman") 
+ println(Person.showMeInnerSecret(clark)) 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac SuperHeroes.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala SuperHeroRunner
+Superman
+
+
+Note : This companinon obect SuperHeroRunner was able to display secret identity for Clark Kent as declared private 
+in person class 
+
+Lets now create an EmployeeDesign.scala
+
+//import java.time_
+import java.time.LocalDate
+
+
+class Employee(val firstName:String,val lastName:String ,val title:String , val hireDate:LocalDate) 
+
+object Employee{
+  def create (firstName:String ,lastName:String,title:String )=
+        new Employee(firstName,lastName,title,LocalDate.now )  // this is a factory method 
+}
+
+object EmployeeDesignRunner extends App {
+ val employee = Employee.create ("Ken" ,"Thompson" ,"Programmer" ) 
+ println(employee.hireDate) 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac EmployeeDesign.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala EmployeeDesignRunner
+2017-09-10
+
+Now lets make the primary constructor of Employee as private/protected and make another method 
+class Employee protected (val firstName:String,val lastName:String ,val title:String , val hireDate:LocalDate) 
+
+ def create ( firstName:String, lastName:String , title:String ,  hireDate:LocalDate ) {
+   new Employee(firstName,lastName,title,hireDate) 
+  }
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac EmployeeDesign.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala EmployeeDesignRunner
+2017-09-10
+
+	Conclusion:
+	------------
+	Companion objects have same name as the class they represent 
+	Companion objects must be in the same file as the class they represent 
+	Companion objects have access to their representative class's private information 
+	Classes have access to Companion object's  private information 
+
+ 
+ Module 5 : Magical Methods 
+  			===============
+
+   1. Magical Apply Methods
+      ---------------------
+
+vi MagicApply.scala
+class Foo(x:Int) {
+ def bar(y:Int) = x+y
+}
+
+object MagicApply extends App{
+  val foo = new Foo(10)
+  println(foo.bar(20)) 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac MagicApply.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala MagicApply
+30
+ 
+when you create method name as apply then you needn't to call object.method name for e.g 
+
+class Foo(x:Int) {
+ def apply(y:Int) = x+y
+}
+
+object MagicApply extends App{
+  val foo = new Foo(10)
+  println(foo.apply(20)) 
+  println(foo(20)) // directly called apply using the object 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac MagicApply.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala MagicApply
+30
+30
+
+Now go to EmployeeDesign.scala created earlier 
+lets change the method named create to apply 
+
+
+import java.time.LocalDate
+
+class Employee protected (val firstName:String,val lastName:String ,val title:String , val hireDate:LocalDate)
+
+object Employee{
+  def apply (firstName:String ,lastName:String,title:String )=
+        new Employee(firstName,lastName,title,LocalDate.now )  // this is a factory method
+
+  def apply ( firstName:String, lastName:String , title:String ,  hireDate:LocalDate ) {
+   new Employee(firstName,lastName,title,hireDate)
+  }
+}
+
+case class Department(name:String) 
+
+object EmployeeDesignRunner extends App {
+ \
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac EmployeeDesign.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala EmployeeDesignRunner
+2017-09-10
+Department(Sports)
+Department(Sports)
+
+If you don't see a method name then its very likely the method that is getting called is apply 
+
+  Conclusion:
+  ----------
+  If a method is called apply then you don't need to explicitly call it 
+  The method apply can be used in classes and objects 
+  This is very important concept and used extensively in scala 
+
+
+  2.  Infix Operators 
+      ---------------
+
+  vi InfixOperators.scala
+class Foo(x:Int) {
+  def bar(y:Int) = x+y
+  def baz(a:Int,b:Int) =x+a+b
+  def qux(y:Int) = new Foo(x +y)
+}
+
+object InfixOperatorsRunner extends App{
+ val foo = new Foo(10)
+ println(foo.bar(5))
+ println(foo bar 5)
+ println(foo.baz(10,14))
+ println(foo baz (10,14))
+ println( foo bar 4 + 19) // 33 i.e foo bar 4 = 10+4 + 19 =33
+ println(foo qux 4 qux 10 qux 19 qux(100+19) bar 40 +300) 
+ 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac InfixOperators.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala InfixOperatorsRunner
+15
+15
+34
+34
+33
+502
+
+  Conclusion:
+  ----------
+  Infix Operators allow a method to be invoked without the dot or parenthesis
+  Infix Operators will work if the method has one parameter 
+  It can somewhat work with more than one parameter ,but the parameters would have to be inside paranthesis
+  Mathematical operations in scala use Infix operators 
+
+
+  3. Right-Associative Colons 
+     -------------------------
+
+ vi RightAssoColons.scala  
+
+//package com.oreilly.scala    
+object RightAssociativeColons extends App {
+ class Foo(x:Int) {
+  def bar (y:Int) = x+y 
+ }
+
+ val foo = new Foo(10) 
+ println(foo.bar(5)) 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac RightAssoColons.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala RightAssociativeColons
+15
+
+
+Now lets change 
+
+object RightAssociativeColons extends App {
+ class Foo(x:Int) {
+  def ~: (y:Int) = x+y 
+ }
+
+ val foo = new Foo(10)
+ println(foo.~:(5)) 
+ println(5 ~: foo ) // Right Associative Colon 
+}
+
+      			
+Priyabrats-MacBook-Air:src pbishwal$ scalac RightAssoColons.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala RightAssociativeColons
+15
+15
+
+   Conclusion:
+   ---------
+   If the method ends in a colon ,you may invoke it in a right associative way 
+   In order to invoke in a right associative way ,it must be invoked as an infix method 
+   Right associativity is used primarily with List and Stream Operations 
+
+   

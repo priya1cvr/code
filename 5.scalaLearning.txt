@@ -1,0 +1,156 @@
+Module 6 : Scala Options & Module 7 : Scala Tuples 
+		   =============              =============
+
+  1. Scala Options -Part 1 &2
+     ----------------------
+ Options are objects represents Yes / NO 
+ 		Option[T] 
+ Some[T]		None
+ 
+ scala> object MySingleton
+defined object MySingleton
+
+scala> val a = MySingleton
+a: MySingleton.type = MySingleton$@46ea78f0
+
+
+
+ vi options.scala 		
+class Employee(firstName:String,middleName:Option[String] ,lastName:String) {
+ def this(firstName:String, middleName:String,lastName:String) =
+        this(firstName,Some(middleName) ,lastName)
+
+ def this(firstName:String, lastName:String) =
+        this(firstName,None ,lastName)
+ def this() = this("Unknown","Unknown")
+
+}
+
+object Options extends App {
+ val  middleName = Some("Antony") // eq to Some.apply
+ val  middleName2:Option[String] = middleName
+ val  middleName3:Option[String] = middleName
+
+ val noMiddleName = None // None is singleton ,an object
+ val noMiddleName2:Option[String] = noMiddleName
+ val noMiddleName3:Option[String] = noMiddleName
+ val noMiddleName4:None.type = noMiddleName
+
+ //val carHoare = new Employee("Charles",Some("Antony") ,"Hoare")
+ //val bjarne = new Employee("Bjarne",None,"Stroustrup")
+
+ val carHoare = new Employee("Charles","Antony" ,"Hoare")
+ val bjarne = new Employee("Bjarne","Stroustrup") // call with noMiddleName
+ val strangePerson = new Employee // calls no arg
+
+ println(middleName.get)
+ println(middleName.getOrElse("No middle name"))
+ //println(noMiddleName.get) // here we get no such element exception
+ println(noMiddleName.getOrElse("No middle name"))
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac options.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Options
+Antony
+Antony
+No middle name
+
+Now add the belwo print statements 
+println(carHoare.middleName.getOrElse("No middle name")) // for this make val in front of primary constructor
+println(bjarne.middleName.getOrElse("No middle name"))  
+println(strangePerson.middleName.getOrElse("No middle name"))
+
+// for above make val in front of primary constructor
+
+ Priyabrats-MacBook-Air:src pbishwal$ scalac options.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Options
+Antony
+Antony
+No middle name
+Antony
+No middle name
+No middle name
+
+lets create a method called peelTheMiddleName 
+
+def peelTheMiddleName(x:Option[String]):String ={
+  x match {
+      case Some(name) => name
+      case None => "No Middle Name"
+    }
+ }
+ println(peelTheMiddleName(carHoare.middleName))
+ println(peelTheMiddleName(bjarne.middleName))
+ println(peelTheMiddleName(strangePerson.middleName))
+
+
+o/p
+Antony
+No Middle Name
+No Middle Name
+
+  Conclusion:
+  ----------
+  Scala programmers don't like Null 
+  Options are modelled as Some or None 
+  Some contains answers to be extracted 
+  Extracting the answers can be done by calling get,getOrElse ,pattern matchin or functions 
+  Scala still uses null to inter operate with Java
+
+Module 7 : Scala Tuples 
+           ============
+
+       1. Tuples part 1 & 2
+       	  ------------------
+Tuple is a container 
+vi Tuples.scala
+
+object Tuples extends App{
+  val t =(1,"cool",402.00)
+  println(t._1) // 1st item 
+  println(t._2) // 2nd item
+  println(t._3) // 3rd item
+
+}
+Priyabrats-MacBook-Air:src pbishwal$ scalac Tuples.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Tuples
+1
+cool
+402.0
+
+val t is inferred ,HOW?  add below code 
+val t1:(Int,String,Double) =t 
+val t2:Tuple3[Int,String,Double] = t // Tuple3 is a class
+
+
+add below in above object 
+case class Department(name:String) 
+ val u =("4",Department("QA")) 
+ println(u)
+ val u2 = u.swap 
+ println(u2)
+ println(u)  // still stays same even after swap  so its immutable e
+
+ Priyabrats-MacBook-Air:src pbishwal$ scalac Tuples.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Tuples
+1
+cool
+402.0
+(4,Department(QA)) // u
+(Department(QA),4) // u2
+(4,Department(QA)) // u 
+
+
+  Conclusion:
+  -----------
+  Tuples are just dummy Containers 
+  Tuples are typed 
+  Tuples go all the way to Tuple22 
+  Tuple2(a class) has swap method 
+  Tuples are immutable 
+  
+ 
+
+
+

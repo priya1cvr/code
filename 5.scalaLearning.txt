@@ -7,6 +7,11 @@ Module 6 : Scala Options & Module 7 : Scala Tuples
  		Option[T] 
  Some[T]		None
  
+ Scala Option[ T ] is a container for zero or one element of a given type. 
+ An Option[T] can be either Some[T] or None object, which represents a missing value. 
+ For instance, the get method of Scala's Map produces Some(value) if a value corresponding to a 
+ given key has been found, or None if the given key is not defined in the Map.
+ 
  scala> object MySingleton
 defined object MySingleton
 

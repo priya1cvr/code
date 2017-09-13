@@ -143,9 +143,11 @@ import scala.beans.BeanProperty
 class Employee( @BeanProperty val firstName:String, 
                 @BeanProperty var lastName:String,
                 val title:String ) {
-        def this(firstName:String,lastName:String) =this(firstName,lastName,"Programmer")
+        def this(firstName:String,lastName:String) =this(firstName,lastName,"Programmer") // this() - 1st line of aux constr
         // this is an auxillary constructor ,title is hardcoded 
 }
+
+first line of an auxiliary constructor must be a call to another constructor of the current class, there is no way for auxiliary constructors to call a superclass constructor.
 
 lets add below at end of EmployeeScript.scala
 println(adax.title )

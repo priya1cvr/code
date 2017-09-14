@@ -438,6 +438,91 @@ Priyabrats-MacBook-Air:src pbishwal$ scalac closures.scala
 Priyabrats-MacBook-Air:src pbishwal$ scala closures
 300
 
+Lets understand closure a better: 
+Problem
+You want to pass a function around like a variable, and while doing so, you want that function to be able to refer to
+one or more fields that were in the same scope as the function when it was declared.
+
+Solution:
+class Foo {
+ // a method that takes a function and a string, and passes the string into
+ // the function, and then executes the function
+  def exec(f:(String)=>Unit ,name:String) {
+        f(name)
+   }
+
+}
+
+object ClosureExample extends App {
+   var hello ="Hello"
+   def sayHello(name:String) ={println(s"$hello ,$name") }
+   //execute sayHello from exec method foo
+
+   val foo = new Foo
+   foo.exec(sayHello,"David")
+
+   // change the local variable 'hello', then execute sayHello from
+   // the exec method of foo, and see what happens
+    hello ="Hola"
+  foo.exec(sayHello,"Lorenz")
+
+
+}
+scala ClosureExample
+Hello ,David
+Hola ,Lorenz
+
+Not only did the sayHello method reference the variable hello from within the exec method of the Foo class
+on the first run (where hello was no longer in scope), but on the second run, it also picked up the 
+change to the hello variable (from Hello to Hola). 
+The simple answer is that Scala supports closure functionality, and this is how closures work.
+
+hello is not a formal parameter; it’s a reference to a variable in the enclosing scope 
+(similar to the way a method in a Java class can refer to a field in the same class). 
+Therefore, the Scala compiler creates a closure that encompasses (or “closes over”) hello.
+
+A closure allows a function to access variables outside its immediate lexical scope.
+A closure is a function together with a referencing environment for the non-local variables of that function .
+
+a closure is a block of code which meets three criteria
+1. The block of code can be passed around as a value, and
+2. It can be executed on demand by anyone who has that value, at which time
+3. It can refer to variables from the context in which it was created 
+
+ Lets take another e.g 
+ 
+ val isOfVotingAge = (age: Int) => age >= 18 
+ isOfVotingAge(16) // false 
+ isOfVotingAge(20) // true
+ 
+instead of hardcoding the value 18 into the function, you can take advantage of this closure technique, 
+and let the function refer to the variable votingAge that’s in scope when you define the function:
+var votingAge = 18
+val isOfVotingAge = (age: Int) => age >= votingAge
+
+When called, isOfVotingAge works as before:
+ isOfVotingAge(16) // false 
+ isOfVotingAge(20) // true
+
+You can now pass isOfVotingAge around to other methods and functions:
+scala> def printResult(f:Int=>Boolean ,x:Int) ={println(f(x)) } 
+printResult: (f: Int => Boolean, x: Int)Unit
+
+scala> printResult(isVotingAge,20)
+true
+
+Because you defined votingAge as a var, you can reassign it. How does this affect
+printResult? Let’s see:
+
+scala> votingAge =21
+votingAge: Int = 21
+
+scala>  printResult(isVotingAge,21)
+true
+scala>  printResult(isVotingAge,20)
+false
+
+
   Conclusion:
   ----------
   Closures are function that close around the enviornment 

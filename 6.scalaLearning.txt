@@ -267,6 +267,17 @@ f4: Int => Int = <function1>
 scala> f4(2)
 res10: Int = 8
 
+You want to define a method that takes a function as a parameter, and that function may 
+have one or more input parameters, and may also return a value.
+
+scala> def exec(f:Int=>Unit , i:Int ) { f(i) } 
+exec: (f: Int => Unit, i: Int)Unit
+
+scala> val plusOne=(i:Int)=>println(i+10)
+plusOne: Int => Unit = <function1>
+
+scala> exec(plusOne,2)
+12
 
 
   5. Converting Method to a function Part 1&2

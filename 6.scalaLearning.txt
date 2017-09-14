@@ -556,7 +556,7 @@ one warning found
 
 so lets add feature 
 
-calac -feature FunctionsWithFunctions.scala
+scalac -feature FunctionsWithFunctions.scala
 FunctionsWithFunctions.scala:8: warning: postfix operator + should be enabled
 by making the implicit value scala.language.postfixOps visible.
 This can be achieved by adding the import clause 'import scala.language.postfixOps'

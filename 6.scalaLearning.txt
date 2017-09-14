@@ -1,0 +1,624 @@
+
+ Module 8 :Higher Order Functions
+  		   ======================
+
+   1. Creating a Function - Part 1 
+      ----------------------------
+Scala is a funtional programming language 
+f(x) =x + 1
+
+traits are constructs that have one abstract methods 
+e.g Function1
+
+vi functions.scala
+
+object Functions extends App{
+  val f1:Function1[Int,Int] = new Function1[Int,Int]{
+        def apply(x:Int):Int =x+1 
+ }
+ println(f1.apply(3)) 
+ println(f1(3)) // since apply is implicit you neednt to declare it 
+
+}
+//goto scala-lang.org to know more about Function1 and its return type 
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac funtions.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Functions
+4
+4
+
+  
+  2. Creating a Function - Part 2 
+      ----------------------------
+go to functions.scala
+
+object Functions extends App{
+  val f1:Function1[Int,Int] = new Function1[Int,Int]{ // Int is i/p and Int is o/p
+        def apply(x:Int):Int =x+1
+ }
+
+ val f0:Function0[Int] = new Function0[Int]{  // Unit is i/p and Int is o/p
+        def apply() =1 
+  }
+
+  val f2:Function2[Int,String,String] =new Function2[Int,String,String] { // Int,String is i/p and String is o/p
+        def apply(x:Int,y:String) = y+x 
+   }
+
+ println(f1(3))
+ println(f0())
+ println(f2(3,"Wow"))
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scala Functions
+4
+1
+Wow3
+
+Now lets change the type decoration of above funtions and give shortHand notations 
+
+object Functions extends App{
+  val f1:Int => Int  = (x:Int) => x+1
+ 
+  val f0:() => Int  = () => 1
+
+  val f2:(Int,String) => String  =(x:Int,y:String) => y+x 
+   
+
+ println(f1(3))
+ println(f0())
+ println(f2(3,"Wow"))
+}
+
+
+Priyabrats-MacBook-Air:src pbishwal$ scala Functions
+4
+1
+Wow3
+
+  3. Creating a Function - Part 3 
+      ----------------------------
+More short hand 
+
+object Functions extends App{
+  val f1  = (x:Int) => x+1  // short hand notation ,i/p is Int and o/p is x+1 i.e Int by default 
+ 
+  val f0  = () => 1  // i/p is Unit and o/p is Int 
+
+  val f2  =(x:Int,y:String) => y+x 
+   
+
+ println(f1(3))
+ println(f0())
+ println(f2(3,"Wow"))
+
+ val f3:String => (String,Int) =(x:String) => (x,x.size) // give me a string i will return string and its size 
+ // return a Tuple 
+ //val f3 =(x:String) => (x,x.size) // same as above 
+ println(f3("Laser")) 
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac funtions.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Functions
+4
+1
+Wow3
+(Laser,5)
+
+  Conclusion:
+  -----------
+  Functions are a trait(pure abstract) that is instiantiated anonymously 
+  apply method in the function means that you don't have to call it explicitly 
+  while you can return only one item ,that item can be a tuple if you need to return multiple items 
+
+  4. Methods or Functions ??
+     ----------------------
+   
+vi MethodOrFunction.scala
+object MyObject{
+ val f =(x:Int) => x+1 // function 
+ def g(x:Int) = x+1   // method 
+ 
+}
+
+object MethodOrFunction extends App{
+ println(MyObject.f.apply(4)) // calling functions 
+ println(MyObject.f(4)) // another way of calling functions
+ println(MyObject.g(4)) // calling method 
+ 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac MethodOrFunction.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala MethodOrFunction
+5
+5
+5
+
+  Conclusion:
+  -----------
+  Functions are their own objects 
+  Methods are not functions 
+  Methods belong to a context
+  If all of its gets confusing,use an explicit apply 
+
+How’s a method different from a function in Scala?
+
+ 1. A method can appear in an expression as an internal value (to be called with arguments) 
+   but it can’t be the final value, while a function can:
+
+scala> val f =(x:Int)=>2*x
+f: Int => Int = <function1>
+
+scala> def m(x:Int)=2*x
+m: (x: Int)Int
+
+scala> m
+<console>:20: error: missing argument list for method m
+Unapplied methods are only converted to functions when a function type is expected.
+You can make this conversion explicit by writing `m _` or `m(_)` instead of `m`.
+       m
+       ^
+
+scala> f
+res1: Int => Int = <function1>
+
+2. Parameter list is optional for methods but mandatory for functions
+
+  scala> def m1 = 100
+m1: Int
+
+scala> def m2() = 100
+m2: ()Int
+
+//a function must have a parameter list
+scala> val f1 = => 100
+<console>:1: error: illegal start of simple expression
+val f1 = => 100
+         ^
+//a function's parameter list could be empty
+scala> val f2 = () => 100
+f2: () => Int = <function0>
+
+  Q.   Why a method can have no parameter list? 
+  Ans : Method name means invocation while function name means the function itself
+ Because methods can’t be the final value of an expression, so if you write a method name and if it doesn’t take any argument (no argument list or an empty argument list), the expression is meant to call that method to get the final value. Because functions can be the final value, if you just write the function name, no invocation will occur and you will get the function as the final value. To force the invocation, you must write ():
+
+//it doesn't have a parameter list
+scala> m1
+res25: Int = 100
+
+//it has an empty parameter list
+scala> m2
+res26: Int = 100
+
+//get the function itself as the value. No invocation.
+scala> f2
+res27: () => Int = <function0>
+
+//invoke the function
+scala> f2()
+res28: Int = 100
+
+
+Q . Why we can provide a method when a function is expected?
+    Many Scala methods such as map() and filter() take functions arguments, 
+    but why can we provide methods to them like:
+
+scala> val myList = List(3, 56, 1, 4, 72)
+myList: List[Int] = List(3, 56, 1, 4, 72)
+
+//the argument is a function
+scala> myList.map((x)=>2*x)
+res29: List[Int] = List(6, 112, 2, 8, 144)
+
+//try to pass a method as the argument instead
+scala> def m3(x: Int) = 3*x
+m3: (x: Int)Int
+
+//still works
+scala> myList.map(m3)
+res30: List[Int] = List(9, 168, 3, 12, 216)
+
+
+This is because when a function is expected but a method is provided, 
+it will be automatically converted into a function. 
+
+This is called the ETA expansion. This makes it a lot easier to use the methods we created. 
+You can verify this behavior with the tests below
+
+//expecting a function
+scala> val f3: (Int)=>Int = m3  // ie f3 is expecting a function so m3 converted to func
+f3: (Int) => Int = <function1>
+
+//not expecting a function, so the method won't be converted.
+scala> val v3 = m3
+<console>:19: error: missing argument list for method m3
+Unapplied methods are only converted to functions when a function type is expected.
+You can make this conversion explicit by writing `m3 _` or `m3(_)` instead of `m3`.
+       val v3 = m3
+                ^
+
+With this automatic conversion, we can write concise code like:
+//10.< is interpreted as obj.method so is still a method. Then it is converted to a function.
+scala> myList.filter(10.<)
+res31: List[Int] = List(56, 72)
+
+Because in Scala operators are interpreted as methods:
+
+prefix: op obj is interpreted as obj.op.
+infix: obj1 op obj2 is interpreted as obj1.op(obj2).
+postfix: obj op is interpreted as obj.op.
+
+You could write 10< instead of 10.<:
+scala> myList.filter(10<)
+warning: there was one feature warning; re-run with -feature for details
+res9: List[Int] = List(56, 72)
+
+How to force a method to become a function?
+
+scala> def m4(x: Int) = 4*x
+m4: (x: Int)Int
+
+//explicitly convert the method into a function
+scala> val f4 = m4 _  // note this is different from val f4 = m4 as f4 is not expecting a funcn but _ forces it 
+f4: Int => Int = <function1>
+
+scala> f4(2)
+res10: Int = 8
+
+
+
+  5. Converting Method to a function Part 1&2
+     ------------------------------------------
+ 
+ scala> class Foo(x:Int){
+     |         def bar(y:Int) =x+y
+     | }
+defined class Foo
+
+scala> val x =new Foo(10)
+x: Foo = Foo@64c4c01
+
+ 
+scala> val f = x.bar _   //explicitly convert the method into a function
+f: Int => Int = <function1>
+
+here we have converted bar into a function 
+
+
+ vi ConvertingDefsToFunction.scala
+
+class Foo(x:Int){
+        def bar(y:Int) =x+y
+}
+
+object  ConvertingDefsToFunctions extends App{
+  val x = new Foo(10) 
+  val f = x.bar _   // _ is placeholder
+  println(f.apply(20)) 
+  println(f(20)) 
+ 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ConvertingDefsToFunction.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ConvertingDefsToFunctions
+30
+30
+
+Lets make another class called baz 
+
+
+class Foo(x:Int){
+        def bar(y:Int) =x+y
+}
+
+class Baz(z:Int) {
+ def qux(f:Int => Int) = f(z) // given a func taking int which returns int 
+}
+
+object  ConvertingDefsToFunctions extends App{
+  val x = new Foo(10)
+  val f = x.bar _   // _ is placeholder ,its a partially applied function 
+  println(f.apply(20))
+  println(f(20))
+ 
+ val z = new Baz(20) 
+ println(z.qux(f)) // 30 when z.qux(f) is called ,f is nothing but bar which adds 2 ele's passed 
+
+ println(z.qux(x.bar _ )) 
+ println(z.qux(x.bar ))  
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ConvertingDefsToFunction.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ConvertingDefsToFunctions
+30
+30
+30
+30
+30
+
+Lets add another method 
+
+ class Foo(x:Int){
+        def bar(y:Int) =x+y
+        def gym(z:Int,a:Int) = x+z+a
+}
+
+class Baz(z:Int) {
+ def qux(f:Int => Int) = f(z) // given a func taking int which returns int
+}
+
+object  ConvertingDefsToFunctions extends App{
+  val x = new Foo(10)
+  val f = x.bar _   // _ is placeholder ,its a partially applied function
+  println(f.apply(20))
+  println(f(20))
+
+ val z = new Baz(20)
+ println(z.qux(f)) // 30
+
+ println(z.qux(x.bar _ ))
+ println(z.qux(x.bar ))
+
+ val f2= x.gym(40,_:Int) // 2nd param i don't know so _ 
+ println(z.qux(f2))  // func from an int to an int 
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ConvertingDefsToFunction.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ConvertingDefsToFunctions
+30
+30
+30
+30
+30
+70
+lets add another method 
+
+class Baz(z:Int) {
+ def qux(f:Int => Int) = f(z) // given a func taking int which returns int
+ def jam(f:(Int,Int) => Int) = f(z,10)
+}
+
+val f3 = x.gym _
+ println(z.jam(f3))
+ println(z.jam(x.gym)) // same as above 
+
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ConvertingDefsToFunction.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ConvertingDefsToFunctions
+30
+30
+30
+30
+30
+70
+40
+
+  Conclusion:
+  -----------
+  Methods can be converted to functions using partially applied functions 
+  Use an underscore to turn method parameters into function parameters 
+  If an underscore is the last character in a method parameter ,you can remove it .
+
+
+   6. Closures
+      ========
+ 
+ Closures are wrappers 
+
+ class Foo(x:Int) {
+ def bar(y:Int => Int) = y(x)
+ 
+}
+
+
+object closures extends App{
+ val m =200
+ val f = (x:Int) => x+m  // m is coming from outside the function ,we are closing around our env which includes 200
+ val foo = new Foo(100) // foo is 100 so is x.
+ println(foo.bar(f)) //  300 
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac closures.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala closures
+300
+
+  Conclusion:
+  ----------
+  Closures are function that close around the enviornment 
+  Closures are used to make up functions from the enviornment 
+  It is best to enclose around something that is stable e.g val 
+
+  7. Functions with Functions 
+     ========================
+vi FunctionsWithFunctions.scala
+
+object FunctionsWithFunctions extends App{
+// val f:(Int,Int=> Int) => Int =(x:Int ,y:Int=>Int) => y(x)
+val f  =(x:Int ,y:Int=>Int) => y(x) // same as above
+//println(f(3,(m:Int) => m+1))
+println(f(3,m => m+1)) // same as above
+println(f(3,_ +1))
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac FunctionsWithFunctions.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala FunctionsWithFunctions
+4
+4
+
+lets do refactoring 
+println(f(3,1+)) // same as above ,addition is commutative 
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac FunctionsWithFunctions.scala
+warning: there was one feature warning; re-run with -feature for details
+one warning found
+
+so lets add feature 
+
+calac -feature FunctionsWithFunctions.scala
+FunctionsWithFunctions.scala:8: warning: postfix operator + should be enabled
+by making the implicit value scala.language.postfixOps visible.
+This can be achieved by adding the import clause 'import scala.language.postfixOps'
+or by setting the compiler option -language:postfixOps.
+See the Scaladoc for value scala.language.postfixOps for a discussion
+why the feature should be explicitly enabled.
+println(f(3,1+)) // addition is commutative
+             ^
+FunctionsWithFunctions.scala:8: warning: postfix operator + should be enabled
+by making the implicit value scala.language.postfixOps visible.
+println(f(3,1+)) // addition is commutative
+             ^
+two warnings found
+
+
+Now it gives 2 warnings we need to import scala.language.postfixOps and run again 
+Priyabrats-MacBook-Air:src pbishwal$ scalac -feature FunctionsWithFunctions.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala FunctionsWithFunctions
+4 //println(f(3,1+)) 
+
+Now lets add below code 
+val g = (x:Int) => (y:Int) => x+y // func return func
+println(g(4)(5)) 
+println(g.apply(4).apply(5)) 
+
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac -feature FunctionsWithFunctions.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala FunctionsWithFunctions
+9
+9
+
+  Conclusion:
+  -----------
+  Functions can take other functions in as parameter ,higher order functions 
+  Higher Order function,the term ,is used to also describe when a method can take a function
+  Function can also return other functions ,useful for applying functions in parts 
+
+
+   8. Currying  
+      =========
+ vi Currying.scala
+ object Currying extends App{
+ val g =(x:Int) => (y:Int) => x+y
+ val f =(x:Int, y:Int) => x+y
+ val fc =f.curried // fc and g are same function 
+ val f2 = Function.uncurried(fc)
+ println(f2(4,5)) 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Currying.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Currying
+9
+
+  Conclusion:
+  ===========
+  Currying is taking a set of arguments and turning them into a sequence of functions returning functions 
+  You can convert a uncurried function into a curried function by calling curried on that function 
+  Use Function.uncurried to uncurry a function 
+
+
+   9. Curryied Methods Parameters  
+      =========
+
+vi CurriedParameters.scala 
+
+object CurriedParameters extends App {
+ def foo(x:Int,y:Int,z:Int) = x+y+z 
+ def bar(x:Int)(y:Int)(z:Int) = x+y+z
+ def baz(x:Int,y:Int)(z:Int) = x+y+z 
+
+ val f = foo(5,_:Int,_:Int)
+ val g = bar(5) _ 
+
+ println(f(4,3)) 
+ println(g(10)(19)) 
+ 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac CurriedParameters.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala CurriedParameters
+12
+34
+
+  Conclusion:
+  -----------
+  Curried Parameters form group of parameters 
+  Curried Parameters make partially applying them easier 
+  Curried Parameters are often used with implicits 
+
+
+   10. By Name Parameters Part 1&2 
+       ===========================
+vi ByNameParameters.scala
+object ByNameParameters  extends App {
+ def byValue(x:Int)(y:Int) = {println ("By Value:"); x+y }
+
+ def byFunction(x:Int) (y: ()=> Int) = {println("By Function:") ; x+y() }
+
+ def byName(x:Int)(y: =>Int) = {println("By Name:") ; x+y }
+
+ val a = byValue(3) {println("In call") ; 19}
+
+ val b = byFunction(3) (() => {println("In call") ; 19})
+
+ val c =byName(3) {println("In call") ; 19}
+}
+
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ByNameParameters.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ByNameParameters
+In call
+By Value:
+By Function:
+In call
+By Name:
+In call       
+
+create another method as below 
+
+def divideSafely(f: => Int) :Option[Int] ={
+  try {
+        Some(f)
+     } catch {
+          case ae:ArithmeticException => None
+        }       
+ }
+
+val d = divideSafely {
+  val x =10
+  val y =5 
+  x/y
+ }
+println(d) 
+
+val e = divideSafely{
+        val x =1000
+        val y =0
+        x/y
+  }
+println(e) 
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ByNameParameters.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ByNameParameters
+In call
+By Value:
+By Function:
+In call
+By Name:
+In call
+Some(2)
+None
+
+
+  Conclusion:
+  -----------
+  By Name Parameters are Parameters that can be called by block and lazily evaluated 
+  by Name Parameters are outstanding for catching exceptions and cleaning up resources after you are done 
+  
+
+
+

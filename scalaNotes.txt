@@ -245,3 +245,134 @@ It defines many utility methods as shown below:
     Assertion utility methods etc.
 
 
+Part 2
+======
+
+How do you prove that by default, Case Object is Serializable and Normal Object is not?
+scala> object MyNormalObject
+defined object MyNormalObject
+
+scala> MyNormalObject.isInstanceOf[Serializable]
+<console>:13: warning: fruitless type test: a value of type MyNormalObject.type cannot also be a Serializable
+       MyNormalObject.isInstanceOf[Serializable]
+                                  ^
+res15: Boolean = false
+
+scala> case object MyCaseObject
+defined object MyCaseObject
+
+scala> MyCaseObject.isInstanceOf[Serializable]
+res16: Boolean = true
+
+equals (==) vs eq  
+    ---------
+equals test for object equality ,instead of equals you can call ==
+eq is used to test if 2 objects are pointed to same object 
+
+
+scala> val s1 = "test"
+s1: String = test
+
+scala> val s2 = "test"
+s2: String = test
+
+scala> val s3 = new String("test") // new object s3
+s3: String = test
+
+scala> s1 eq s2 // both point to same object 
+res16: Boolean = true
+
+scala> s1 equals s2
+res17: Boolean = true
+
+scala> s1 == s2
+res18: Boolean = true
+
+scala> s1 == s3 // compares 2 instances i.e test and test ,so true 
+res19: Boolean = true
+
+scala> s1 eq s3 // compares 2 objects s1 is one obj and s3 is seperate .so false 
+res20: Boolean = false
+
+scala> s1 equals s3
+res21: Boolean = true
+
+scala>  val s4 = new String("test")
+s4: String = test
+
+scala> s3 eq s4
+res22: Boolean = false
+
+scala> s3 == s4
+res23: Boolean = true
+
+
+What is Diamond Problem? How Scala solves Diamond Problem?
+A Diamond Problem is a Multiple Inheritance problem. Some people calls this problem as Deadly Diamond Problem.
+In Scala, it occurs when a Class extends more than one Traits which have same method definition as shown below.
+
+      traitA
+     /	    \
+  traitB     traitC
+ 	\ /
+      class D	
+
+Unlike Java 8, Scala solves this diamond problem automatically by following some rules defined in Language. 
+Those rules are called “Class Linearization”.
+
+trait A{   
+  def display(){ println("From A.display")  }
+}
+trait B extends A{ 
+  override def display() { println("From B.display") }
+}
+trait C extends A{ 
+  override def display() { println("From C.display") }
+}
+class D extends B with C{ }
+
+object ScalaDiamonProblemTest extends App {
+    val d = new D
+    d.display
+}
+Priyabrats-MacBook-Air:src pbishwal$ scalac ScalaDiamondProblemTest.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ScalaDiamonProblemTest
+From C.display
+
+Here output is “From C.display” form trait C. Scala Compiler reads “extends B with C” from right to left and takes “display” method definition from left most trait that is C.
+If you change - extends C with B the o/p will be From B.display
+
+Why Scala does NOT have “static” keyword? What is the main reason for this decision?
+The main reason to take this decision is to make Scala as a Pure Object-Oriented Language. “static” keyword means that we can access that class members without creating an object or without using an object. This is completely against with OOP principles.
+
+
+How to define Factory methods using object keyword in Scala? What is the use of defining Factory methods in object?
+In Scala, we use ‘object’ keyword to define Factory methods. 
+The main purpose of these Factory methods in Scala is to avoid using ‘new’ keyword. 
+Without using ‘new’ keyword we can create objects.
+
+class Person(val firstName: String, val middleName: String, val lastName: String){
+  def this(firstName: String, lastName: String){
+    this(firstName,"",lastName)
+  }
+}
+object Person{
+  def apply(val firstName: String, val middleName: String, val lastName: String) 
+        = new Person(firstName,middleName,lastName) // this is a factory method 
+
+  def apply(val firstName: String, val lastName: String) 
+        = new Person(firstName, lastName) // this is a factory method 
+}
+
+Now we can create Person objects without using new keyword or with new keyword upto your wish.
+
+val p1 = new Person("Scala","Java")
+or 
+val p1 = Person("Scala","Java")
+
+
+
+
+
+
+

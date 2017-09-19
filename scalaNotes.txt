@@ -372,6 +372,77 @@ val p1 = Person("Scala","Java")
 
 
 
+apply method: To compose or assemble an object from it’s components.
+unapply method: To decompose or dis-assemble an object into it’s components.
+
+class Foo(x:Int) {
+ def apply(y:Int) = x+y
+}
+
+object MagicApply extends App{
+  val foo = new Foo(10)
+  println(foo.apply(20)) 
+  println(foo(20)) // directly called apply using the object 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac MagicApply.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala MagicApply
+30
+30
+
+How do we declare a private Primary Constructor in Scala? 
+How do we make a call to a private Primary Constructor in Scala?
+
+Add ‘private’ just after class name 
+A simple way to enforce the Singleton pattern in Scala is to make the primary constructor private, 
+then put a getInstance method in the companion object of the class:
+
+class Brain private {
+    override def toString = "This is the brain."
+}
+object Brain {
+    val brain = new Brain
+    def getInstance = brain
+}
+
+object SingletonTest extends App {
+    // this won't compile
+    // val brain = new Brain
+    // this works
+    val brain = Brain.getInstance
+    println(brain)
+}
+
+A pure function is a function without any observable side-effects. 
+That means it returns always same results irrespective how many times we call it with same inputs.
+A pure function always gives same output for the same inputs.
+
+For Example:-
+
+scala> 10 + 20
+res0: Int = 30
+scala>
+scala> 10 + 20
+res0: Int = 30
+
+Here “+” a pure function available in Int class. It gives same result 30 for same inputs 10 and 30, irrespective how many times we call it.
+
+Compared to Java’s constructors, Auxiliary constructors have the following few differences:
+ The auxiliary constructors are called using “this” keyword.
+ All auxiliary constructor are defined with the same name that is “this”. In Java, we use class name to define constructors.
+ Each auxiliary constructor must start with a call to a previously defined auxiliary constructor or the primary constructor.
+ We use ‘def’ keyword to define auxiliary constructors like method/function definition. In Java, constructor definition and     Method definition is different.
+
+
+What is the use of ‘yield’ keyword in Scala’s for-comprehension construct?
+for/yield’ is used to iterate a collection of elements and generates new collection of same type. 
+It does not change the original collection. It generates new collection of same type as original collection type.
+scala> val list = List(1,2,3,4,5)
+list: List[Int] = List(1, 2, 3, 4, 5)
+
+scala> for(l <- list) yield l*2
+res0: List[Int] = List(2, 4, 6, 8, 10)
+
 
 
 

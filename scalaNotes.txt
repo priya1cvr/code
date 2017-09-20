@@ -443,7 +443,42 @@ list: List[Int] = List(1, 2, 3, 4, 5)
 scala> for(l <- list) yield l*2
 res0: List[Int] = List(2, 4, 6, 8, 10)
 
+Part-3
+======
+
+What is Option in Scala? What are Some and None? What is Option/Some/None Design Pattern in Scala?
+
+In Scala, Option is used to represent optional values that is either exist or not exist.
+Option is an abstract class. 
+Option has two subclasses: Some and None. 
+All three (Option, Some and None) are defined in “scala” package like “scala.Option”.
+
+ 	   Option[T] 
+ Some[T]		None
+ 
+ Scala Option[ T ] is a container for zero or one element of a given type. 
+ An Option[T] can be either Some[T] or None object, which represents a missing value. 
+ If Option contains zero elements that is None. If Option contains one element, that is Some.
+ 
+ For instance, the get method of Scala's Map produces Some(value) if a value corresponding to a 
+ given key has been found, or None if the given key is not defined in the Map.
+
+e.g : def get(val index: Int): Option[String]  
+If List contains elements, this get method returns “Some[String]” element available in that index position. 
+Otherwise, it returns “None” (that is no elements)
+
+Note: Some is a case class and None is an Object. 
+    As both are case class/object, we can use them in Pattern Matching very well.
 
 
+Q.What is Either in Scala? What are Left and Right in Scala? Explain Either/Left/Right Design Pattern in Scala?
+
+In Scala, Either is an abstract class. 
+It is used to represent one value of two possible types. It takes two type parameters: Either[A,B].
+
+It exactly have two subtypes: Left and Right. 
+If Either[A,B] represents an instance A that means it is Left. 
+If it represents an instance B that means it is Right.
+This is known as Either/Left/Right Design Pattern in Scala.
 
 

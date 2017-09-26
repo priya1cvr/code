@@ -1,0 +1,157 @@
+MultiThreading 
+-------------
+
+1. Parallel Collections 
+   ===================
+vi ParallelCollect.scala
+object ParallelCollect extends App {
+ def fib(n:Int):Int = if (n<2) 1 else (fib(n-1) + fib(n-2))
+
+ for ( i<- (30 to 15 by -1) ) {
+        println(fib(i))
+ }
+}
+
+Running this program gives the o/p in desc order 
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala ParallelCollect
+1346269
+832040
+514229
+317811
+196418
+121393
+75025
+46368
+28657
+17711
+10946
+6765
+4181
+2584
+1597
+987
+
+
+Now lets add parallelised collection i.e .par in range method , 
+
+vi ParallelCollect.scala
+object ParallelCollect extends App {
+ def fib(n:Int):Int = if (n<2) 1 else (fib(n-1) + fib(n-2))
+
+ for ( i<- (30 to 15 by -1).par ) {
+        println(fib(i))
+ }
+}
+
+.par: makes a parallelised collection and gives o/p for which ever thread completes faster 
+o/p is not ordered which proves the things happening in parallel 
+
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala ParallelCollect
+28657
+4181
+2584
+1597
+987
+17711
+10946
+6765
+196418
+121393
+75025
+46368
+514229
+317811
+832040
+1346269
+
+Why didnt we make parallel all the time ? 
+There is subtle reason for this . to understand that lets add below code in above prog 
+something called race condition 
+
+var i = 0 
+for (j<- 1 to 1000000) i+=1 
+println(i) 
+
+but if i make it parallel the result is not same 
+
+var i = 0 
+for (j<- (1 to 1000000).par) i+=1 
+println(i) 
+
+lets see it in REPL 
+
+scala> var i = 0 
+i: Int = 0
+
+scala> for (j<- 1 to 1000000) i+=1 
+
+scala> println(i) 
+1000000
+
+scala> for (j<- (1 to 1000000).par) i+=1 
+
+scala> println(i) 
+1664619
+
+scala> for (j<- (1 to 1000000).par) i+=1 
+
+scala> println(i) 
+2199778
+
+every time i run the loop in par its going to give different result , WHY ?? 
+
+This is because of i+=1 is not as simple as looks 
+this means :
+load i from memory 
+add 1 to register 
+store i to memory 
+
+that means when one thread load one value of i and before that thread stores the value of i ,another thread 
+loads the same value of i .Multiple thread may get same value of i . all add 1 
+We call this as race condition 
+
+As a general Rule , if you have mutable memory like vars /arrays /buffers .. and you have 2 threads where one is 
+loading and other is writing then you have chances of race condition 
+
+So we need to overcome this error .
+
+2. Scala Futures  
+   ============
+
+Parallel collection is good for data parallelism 
+Futures are in scala doc Concurrent Package 
+
+vi FutureTest.scala
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
+object FutureTest extends App{
+	val f = Future{
+		println("printing in the future") 
+	}
+}
+
+here it sometimes won't  print as the main thread terminates before Future is run .So program ran and stopped 
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+printing in the future
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+AMAC02S2WMQFVH5:src p.kumar.bishwal$  // didnt print anything 
+
+So we need to pause the execution for sometime 
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
+object FutureTest extends App{
+	println("This is first") 
+	val f = Future{
+		println("printing in the future") 
+	}
+	Thread.sleep(1000)
+	println("This is last") 
+	Thread.sleep(5000) 
+}
+
+Anything put in future is going to be executed in own thread 
+

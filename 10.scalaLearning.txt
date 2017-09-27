@@ -120,6 +120,7 @@ So we need to overcome this error .
 
 Parallel collection is good for data parallelism 
 Futures are in scala doc Concurrent Package 
+Anything put in future is going to be executed in own thread 
 
 vi FutureTest.scala
 
@@ -154,4 +155,352 @@ object FutureTest extends App{
 }
 
 Anything put in future is going to be executed in own thread 
+
+3. Future Calculations 
+   ====================
+  lets make another future  
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Failure
+import scala.util.Success
+
+ object FutureTest extends App{
+	println("This is first") 
+	val f = Future{
+		println("printing in the future") 
+	}
+	Thread.sleep(1000)
+	println("This is last") 
+    
+    // f2 is a future of index seq of Ints 
+	val f2=Future{ 
+		for (i<- 1 to 30 ) yield ParallelCollect.fib(i) 
+	}
+	//f2.foreach(println)
+	f2.onComplete{
+		case Success(n) => println(n)
+		case Failure(ex) =>println("Something went Wrong"+ex) 
+	}
+	
+	Thread.sleep(5000)
+}
+  
+ //Failure and Success are imported from case Success and Failure 
+ 
+ AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac FutureTest.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+This is first
+printing in the future
+This is last
+Vector(1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040, 1346269)
+
+Here no exception is there , lets add some exception to this .
+val f2=Future{ 
+		for (i<- 1 to 30 ) yield ParallelCollect.fib(i) 
+		throw new RuntimeException("BAD.") 
+	}
+ 
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac FutureTest.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+This is first
+printing in the future
+This is last
+Something went Wrongjava.lang.RuntimeException: BAD.
+
+Here we can see from above that how onComplete deals with the case where it is handled properly and improperly ,
+with success and failures .
+Like foreach it schedules until f2 future is done ,it doesn't happen until then
+
+In next Section we can see how to block futures 
+
+
+4. Awaiting Futures
+   ================
+   
+ What if you want to wait until result is ready , i.e until other thread has completed processing .
+ 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Failure
+import scala.util.Success
+import scala.concurrent.Await
+import scala.concurrent.duration._ 
+
+ object FutureTest extends App{
+	println("This is first") 
+	val f = Future{
+		println("printing in the future") 
+	}
+	Thread.sleep(1000)
+	println("This is last") 
+    
+    // f2 is a future of index seq of Ints 
+	val f2=Future{ 
+		for (i<- 1 to 30 ) yield ParallelCollect.fib(i) 
+	}
+	
+	println(Await.result(f2,5.seconds)) // Await blocks fr 5 secs and takes f2 future 
+	//f2.foreach(println)
+	/*
+	f2.onComplete{
+		case Success(n) => println(n)
+		case Failure(ex) =>println("Something went Wrong"+ex) 
+	}
+	Thread.sleep(5000)
+	*/
+	
+	
+}
+
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ vi FutureTest.scala 
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac FutureTest.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+This is first
+printing in the future
+This is last
+Vector(1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040, 1346269)
+
+It shows until the result is completed and wont print the result unless completed 
+
+
+5 . Future Object Methods in Scala
+	==============================
+	
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Failure
+import scala.util.Success
+import scala.concurrent.Await
+import scala.concurrent.duration._ 
+
+ object FutureTest extends App{
+	println("This is first") 
+	val f = Future{
+		println("printing in the future") 
+	}
+	Thread.sleep(1000)
+	println("This is last") 
+    
+    // f2 is a future of index seq of Ints 
+	val f2=Future{ 
+		for (i<- 1 to 30 ) yield ParallelCollect.fib(i) 
+	}
+	
+	println(Await.result(f2,5.seconds)) // Await blocks fr 5 secs and takes f2 future 
+	val page1 = Future{
+		"Google" + io.Source.fromURL("https://www.google.co.in").take(100).mkString //take 100 chars 
+		
+	}
+	val page2 = Future{
+		"Facebook" + io.Source.fromURL("https://www.facebook.com").take(100).mkString //take 100 chars 
+		
+	}
+	
+	val page3 = Future{
+		"Youtube" + io.Source.fromURL("https://www.youtube.com").take(100).mkString //take 100 chars 
+		
+	}
+	
+	val pages =List(page1,page2,page3) 
+	
+	val firstPage = Future.firstCompletedOf(pages) 
+	// this gives a single Future of which ever of one of those gets complete 1st 
+	
+	firstPage.foreach(println)
+	Thread.sleep(5000)
+	
+}
+	 
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac FutureTest.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+This is first
+printing in the future
+This is last
+Vector(1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040, 1346269)
+Google<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en-IN"><head><meta cont
+
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+This is first
+printing in the future
+This is last
+Vector(1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040, 1346269)
+Youtube  <!DOCTYPE html><html lang="en" data-cast-api-enabled="true"><head><style name="www-roboto" >@font-
+
+the o/p may differ sometimes 
+
+What if we need all of them ? so lets comment firstPage 
+and add below 
+
+val allPages = Future.sequence(pages)  // sequence waits until all completes 
+allPages.foreach(println) 
+
+
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac FutureTest.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala FutureTest
+This is first
+printing in the future
+This is last
+Vector(1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040, 1346269)
+List(Google<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en-IN"><head><meta cont, Facebook<!DOCTYPE html>
+<html lang="or" id="facebook" class="no_js">
+<head><meta charset="utf-8" /><meta nam, Youtube  <!DOCTYPE html><html lang="en" data-cast-api-enabled="true"><head><style name="www-roboto" >@font-)
+
+
+6. Synchronization 
+   =================
+Race condition is when 2 or more threads are accessing a single location of memory and atleast one of them is writing .
+Problem with this is they cause the program to behave with unpredictable way .
+
+this is what looks like race condition : 
+var i = 0 
+for ((j<- 1 to 1000000).par) i+=1 
+println(i) 
+
+
+Lets create a  new class BankAccount 
+
+vi BankAccount.scala
+
+class BankAccount (private var _balance:Int) {
+	def balance = _balance 
+	
+	def deposit(amount:Int) :Boolean ={
+		if (amount < 0) false 
+		else {
+			_balance += amount 
+			true
+		}
+	}
+	def withdraw(amount:Int):Boolean = {
+		if (amount < 0 || amount > _balance) false 
+		else {
+			_balance -= amount 
+			true
+		}
+	}
+}  
+   
+ object BankAccount extends App {
+ 	val acc = new BankAccount(0) // create zero balance acct 
+ 	for ( i<-(1 to 1000000).par) {
+ 		acc.deposit(1)
+ 	}
+ 	println(acc.balance) 
+ }  
+ 
+ 
+ When you run this you will find the balance is not million 
+ AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac BankAccount.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala BankAccount
+706863
+
+this is becoz 2 different threads are going to modify balance at same time 
+So how to fix this ?? 
+Easiest way is to use something called synchornisation 
+all objects  have  a method in them called synchronized
+what this does is basically sets a lock on each object passed and when some other code tries to 
+go into , it waits for other to finish 
+
+
+def deposit(amount:Int) :Boolean = this.synchronized{
+		if (amount < 0) false 
+		else {
+			_balance += amount 
+			true
+		}
+	}
+	def withdraw(amount:Int):Boolean = synchronized{
+		if (amount < 0 || amount > _balance) false 
+		else {
+			_balance -= amount 
+			true
+		}
+	}
+
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac BankAccount.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala BankAccount
+1000000
+
+
+what we are doing here is not timing it as by synchronized it runs lot slower 
+this is due to par ie being parallel consumes time if you are using synchronization there
+   
+So to avoid race condition ,  synchronization is used and comes with timing cost too (using par ) 
+
+
+7.  Deadlocks
+	==========
+	
+Speed is only issue with synchronization .
+Deadlock occurs when multiple threads waiting fr each other 
+All examples of race conditions were using par till now ,we can make race conditon with future too 
+
+import scala.concurrent.ExecutionContext.Implicits.global
+class BankAccount (private var _balance:Int) {
+        def balance = _balance
+
+        def deposit(amount:Int) :Boolean = this.synchronized{
+                if (amount < 0) false
+                else {
+                        _balance += amount
+                        true
+                }
+        }
+        def withdraw(amount:Int):Boolean = synchronized{
+                if (amount < 0 || amount > _balance) false
+                else {
+                        _balance -= amount
+                        true
+                }
+        }
+}
+
+ object BankAccount extends App {
+        val acc = new BankAccount(0) // create zero balance acct
+        for ( i<-(1 to 1000000).par) {
+                acc.deposit(1)
+        }
+        println(acc.balance)
+     var cnt =0 
+     import scala.concurrent.Future
+
+     Future {for  (i<-1 to 1000000) cnt+=I}.foreach{_ => println("f1 done")  } 
+     Future {for  (i<-1 to 1000000) cnt+=I}.foreach{_ => println("f2 done")  }  
+     Thread.sleep(1000)
+     println(cnt)   
+     
+     // to show deadlock 
+     import collection.mutable  
+     var b1 =mutable.Buffer[String]()
+     var b2 =mutable.Buffer[String]()
+     
+     def doWork(count:Int):Unit = Thread.sleep(count)
+     def useBuffers(buf1:mutable.Buffer[String] , buf2:mutable.Buffer[String]) :Unit ={
+     	buf1.synchronized{
+     		doWork(1000)
+     		buf2.synchronized{
+     		doWork(1000)
+     		}
+     	}
+     }  
+     
+     Future { useBuffers(b1,b2) }.foreach{_ => println("call 1 done") }
+     // if you run the second Future it won't print 
+     // this is becoz the 1st call locks b1 immediately and 2nd call locks b2 immediately and 1st call tries to get b2 
+     // but it can't , so do same happens with b2 when tries for b1 
+     // so don't over synchronise your code 
+     //Future { useBuffers(b2,b1) }.foreach{_ => println("call 2 done") }
+     
+     Thread.sleep(1000) 
+     println("Main done") 
+     
+ }
+
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scalac BankAccount.scala
+AMAC02S2WMQFVH5:src p.kumar.bishwal$ scala BankAccount
+1000000
+f1 done
+f2 done
+-1574406135 //  cnt value race condition 
+Main done
 

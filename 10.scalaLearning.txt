@@ -1,3 +1,113 @@
+Youtube:OOADSUS Chapter 4 - Abstraction an Polymorphism
+
+Parametric Polymorphism
+  ----------------------
+scala> var arr1 =Array(1,2,3)
+arr1: Array[Int] = Array(1, 2, 3)
+
+The [] are holding a type parameter and thats why they are called parametric polymorphism
+because there is a parameter here which specifies a type .
+
+scala> var arr2 = Array[Any](1,2,3) 
+arr2: Array[Any] = Array(1, 2, 3)
+
+Whats difference between arr1 and arr2 ? 
+arr1 enforces to store only Int whereas arr2 the type can be Any 
+see below:
+scala> arr1.sum
+res0: Int = 6
+
+scala> arr2.sum
+<console>:13: error: could not find implicit value for parameter num: Numeric[Any]
+       arr2.sum
+
+
+Since type in arr2 is Any we can't take sum as we can change the type of arr2
+scala> arr2(1) = true
+
+scala> arr2
+res3: Array[Any] = Array(1, true, 3)
+
+
+//this class stores values for hrs in a day 
+[] as we know are used to hold type parameter 
+() - normal parameter 
+A- is just the name of the type parameter .You don't want to conflict with real types 
+vi ParametricPolymorphism.scala
+
+class ToDValues[A] {
+	private val values :Array[Option[A]]=Array.fill(24)(None)
+
+	def apply(hour:Int) =values(hour).get // since None we have used get fucntion 
+	
+	def get(hour:Int) :Option[A]=values(hour) // gives values(hour)
+
+	def update(hour:Int,v:A) = { values(hour)=Some(v) } 
+	def clear(hour:Int):Unit = {values(hour) =None } 
+
+	def combine(o:ToDValues[A] , f:(Option[A],Option[A]) =>Option[A]) :ToDValues[A] ={
+		val ret = new ToDValues[A]
+		for((v,i)<- (values,o.values).zipped.map((v1,v2)=>f(v1,v2)).zipWithIndex){
+			ret.values(i) = v 
+		}
+	ret 	
+	}
+
+}
+
+//zipped takes tuple and produces a collection of tuples 
+
+
+object ToDValues extends App{
+	val riders1 = new ToDValues[Int]
+	val riders2 = new ToDValues[Int]
+
+	val worker1 = new ToDValues[String]
+	val worker2 = new ToDValues[String]
+
+	riders1(12) = 5 // calls update method ,12-means 12 PM,5 riders 
+	riders1(8) = 10
+	riders1(14) = 7 
+	riders2(14) = 8 // riders1(14) gets added to and sum gives 15 
+
+	worker1(12)="Kyle"
+
+	val totRiders =riders1.combine(riders2,(o1,o2)=>(o1,o2) match {
+		case (None,None)=>None
+		case (Some(a),None)=>Some(a)
+		case (None,Some(b))=>Some(b)
+		case (Some(a),Some(b))=>Some(a+b)
+	})
+	totRiders.values.foreach(println)
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac ParametricPolymorphism.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala -nc ToDValues
+None
+None
+None
+None
+None
+None
+None
+None
+Some(10)
+None
+None
+None
+Some(5)
+None
+Some(15)
+None
+None
+None
+None
+None
+None
+None
+None
+None
+
 MultiThreading 
 -------------
 

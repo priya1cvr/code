@@ -1,0 +1,25 @@
+>>> import csv
+>>> f=open('portfolio.csv','r')
+>>> rows=csv.reader(f)
+>>> header=next(rows)
+>>> header
+["'name'", "'date'", "'share'", "'prince"]
+>>> row=next(rows)
+>>> row
+['GE', 'Feb 1,2006', '95', '40.37']
+>>> types=[str,str,int,float]
+>>> types
+[<type 'str'>, <type 'str'>, <type 'int'>, <type 'float'>]
+>>> for func,val in zip(types,row):
+...     print(func,val)
+...
+(<type 'str'>, 'GE')
+(<type 'str'>, 'Feb 1,2006')
+(<type 'int'>, '95')
+(<type 'float'>, '40.37')
+>>> converted=[func(val) for func,val in zip(types,row)]
+>>> converted
+['GE', 'Feb 1,2006', 95, 40.37]
+>>> dict(zip(header,converted))
+{"'date'": 'Feb 1,2006', "'share'": 95, "'prince": 40.37, "'name'": 'GE'}
+>>>

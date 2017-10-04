@@ -1,0 +1,451 @@
+Module 10  : Collections with Functions
+ 			 --------------------------
+
+   1. Map(function)
+      -------------
+vi MapFunction.scala       
+
+object  MapFunction extends App {
+ val a = List(1,2,3,4,5,6)
+ val f = (x:Int) => x+1
+ println(a.map(f))
+ println(a.map((x:Int) => x+1 )) // inline map func
+ println(a.map(x=> x+1 ))
+ println(a.map(_ + 1 ))
+ println(a.map(1 + _ )) // addition is commutative
+ import scala.language.postfixOps
+ println(a.map(1+))
+
+ val b = Set("Brown" ,"Red","Green","Purple","Gray") 
+ println(b.map(x=> x.size)) // returns string  size
+ println(b.map(x => (x,x.size)) )
+ 
+ val fifaMensChamps = Map('Germany -> 4, 'Brazil -> 5,'Italy ->4 ,'Argentina -> 2) 
+ println(fifaMensChamps.map(t => (Symbol.apply("Team"+ t._1.name),t._2)) )
+
+ println("Hello!".map(c => (c+1).toChar)) 
+ println(Some(4).map(1+)) 
+ println(None.asInstanceOf[Option[Int]].map(1+)) // without asInstanceOf gives error as None can't
+be added 
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac MapFunction.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala MapFunction
+List(2, 3, 4, 5, 6, 7)
+List(2, 3, 4, 5, 6, 7)
+List(2, 3, 4, 5, 6, 7)
+List(2, 3, 4, 5, 6, 7)
+List(2, 3, 4, 5, 6, 7)
+List(2, 3, 4, 5, 6, 7)
+Set(5, 6, 3, 4)
+Set((Green,5), (Brown,5), (Gray,4), (Red,3), (Purple,6))
+Map('TeamGermany -> 4, 'TeamBrazil -> 5, 'TeamItaly -> 4, 'TeamArgentina -> 2)
+Ifmmp"
+Some(5)
+None
+
+   Conclusion:
+   ----------
+   Map takes a function and applies to every element of a collection 
+   Map can be applied to List,Sets,Maps,Streams,Strings,even Options !
+
+
+   2. Filter,FilterNot,Exists
+      -----------------------
+vi FilterFunction.scala
+
+ object FilterFunction extends App {
+
+ val a =1 to 10
+ println(a.filter(x=>x%2==0)) // filter even no.
+ println(a.filterNot(x=>x%2==0)) // filter odd no.
+ println(a.exists(x=>x%2==0)) // does it have even no.'s
+
+ def filterVowels(s:String) =s.toLowerCase.filter(c=>Set('a','e','i','o','u').contains(c))
+ println(filterVowels("Orange"))
+
+ val b =Set("Red","Blue","Green","Purple","Orange")
+ println(b.filter(s=>filterVowels(s).size >1))
+
+ val m =Map(1->"One",2->"Two",3->"Three",4->"Four") 
+ println(m.filterKeys(_%2==0)) 
+
+ println(Some(5).filter(_%2 ==0 )) // prints None 
+ println(Some(4).filter(_%2 ==0 ))
+}
+
+
+Priyabrats-MacBook-Air:scala pbishwal$ scalac FilterFunction.scala
+Priyabrats-MacBook-Air:scala pbishwal$ scala FilterFunction
+Vector(2, 4, 6, 8, 10)
+Vector(1, 3, 5, 7, 9)
+true
+oae
+Set(Blue, Green, Purple, Orange)
+Map(2 -> Two, 4 -> Four)
+None
+Some(4)
+
+  Conclusion:
+  ----------
+  filter filters out elements that meet a predicate criteria
+  filterNot filters out elements that do not meet a predicate criteria
+  exists tests if something exists in a collection based on a function
+  Methods are available for lists,ranges,sets,maps,options etc 
+
+
+  3.  FOREACH
+      -------
+returns unit         
+scala> val a =1 to 10
+a: scala.collection.immutable.Range.Inclusive = Range 1 to 10
+
+scala> println(a.map(x=>println(x)) )
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Vector((), (), (), (), (), (), (), (), (), ())
+
+when we print all these items we get units too 
+scala> a.foreach(i=>println(i))
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+ 
+scala> a.foreach(println)
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+   Conclusion:
+   -----------
+   foreach is a method that takes a function that takes each element and returns Unit
+   Perfect if you want to take an element and perform a side-effect like print to screen
+   foreach is available for lists,ranges,Sets,maps,options etc
+
+ 
+  4. FlatMap
+     -------
+
+vi FlatMap.scala
+
+object FlatMap extends App {
+ val a = List(1,2,3,4,5)
+ println(a.map(x=>List(-x,0,x))) // gives List of List
+ println(a.map(x=>List(-x,0,x)).flatten) // flattens
+ println(a.flatMap(x=>List(-x,0,x)))
+
+ val b =List(List(List(1,2,3),List(4,5,6)),
+          List(List(7,8,9),List(10,11,12)))
+
+ println(b.flatMap(c=>c)) // identity functin
+ println(b.flatMap(c=>c).flatMap(c=>c))
+
+ println(Set(2,4,10,11).flatMap(x=>Set(x,x*5)))
+
+ val origMap =Map(1->"One",2->"Two",3->"Three")
+ println(origMap.flatMap(t=>Map(t._1->t._2,(t._1*100)->(t._2 +"Hundred"))))
+
+ println(Some(4).map(x=>Some(x+19)))
+ println(Some(4).flatMap(x=>Some(x+19)))
+ println(None.asInstanceOf[Option[Int]].flatMap(x=>Some(x+19))) // only None can't be added so asInstance
+ 
+ println(Some(10).flatMap(x=>None)) // its ok 
+ println(List(Some(4),None,Some(5),None,None,Some(10)).flatMap(x=>x))  // None disappear
+
+}
+
+Priyabrats-MacBook-Air:scala pbishwal$ scalac FlatMap.scala
+Priyabrats-MacBook-Air:scala pbishwal$ scala FlatMap
+List(List(-1, 0, 1), List(-2, 0, 2), List(-3, 0, 3), List(-4, 0, 4), List(-5, 0, 5))
+List(-1, 0, 1, -2, 0, 2, -3, 0, 3, -4, 0, 4, -5, 0, 5)
+List(-1, 0, 1, -2, 0, 2, -3, 0, 3, -4, 0, 4, -5, 0, 5)
+List(List(1, 2, 3), List(4, 5, 6), List(7, 8, 9), List(10, 11, 12))
+List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+Set(10, 20, 2, 50, 11, 55, 4)
+Map(1 -> One, 2 -> Two, 3 -> Three, 300 -> ThreeHundred, 200 -> TwoHundred, 100 -> OneHundred)
+Some(Some(23))
+Some(23)
+None
+None
+List(4, 5, 10)
+
+  Conclusion:
+  -----------
+  FlatMap for collections is the combination of flatten and map
+  FlatMap can be applied to Lists,Sets,Maps,Streams,Strings,even Options 
+  Your cue to Use flatmap is when you see List[List[A]]
+  FlatMap can also be used in collection layers List[List[List[A]]]
+
+
+  5. For Comprehension
+     -----------------
+vi ForComprehsion.scala 
+object  ForComprehsion extends App{
+/*
+ for (i<- 1 to 10) {
+  println(i)
+ }
+*/
+
+//lets create ForComprehsion
+
+val result1 = for(i<- 1 to 10) yield (i+1)
+println(result1)
+
+val result2 =(1 to 10).map(_+1)
+println(result2)
+
+val result3 = for(i <- Some(100)) yield (i+40)
+println(result3)
+
+val result5 = for(i <- List(1,2,3,4,5) ;
+                  j<- List(5,6,7,8)) yield (i,j)
+println(result5)
+
+val result6 =List(1,2,3,4,5).flatMap(i=>List(5,6,7,8).map(j=>(i,j)))
+println(result6) // using map gives Lists of List
+
+val result7 = for(i <- List(1,2,3,4) if (i %2) ==0 ;
+                  j <- List(5,6,7,8) ) yield (i,j)
+println(result7)
+
+val result8 = List(1,2,3,4).withFilter(i=>i%2==0)      
+                .flatMap(i=>List(5,6,7,8).map(j=>(i,j))) // withFilter is Lazy evaluatin 
+println(result8) // same as result7
+}
+
+
+Priyabrats-MacBook-Air:scala pbishwal$ scalac ForComprehsion.scala
+Priyabrats-MacBook-Air:scala pbishwal$ scala ForComprehsion
+Vector(2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+Vector(2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+Some(140)
+List((1,5), (1,6), (1,7), (1,8), (2,5), (2,6), (2,7), (2,8), (3,5), (3,6), (3,7), (3,8), (4,5), (4,6), (4,7), (4,8), (5,5), (5,6), (5,7), (5,8))
+List((1,5), (1,6), (1,7), (1,8), (2,5), (2,6), (2,7), (2,8), (3,5), (3,6), (3,7), (3,8), (4,5), (4,6), (4,7), (4,8), (5,5), (5,6), (5,7), (5,8))
+List((2,5), (2,6), (2,7), (2,8), (4,5), (4,6), (4,7), (4,8))
+List((2,5), (2,6), (2,7), (2,8), (4,5), (4,6), (4,7), (4,8))
+
+   
+   Conclusion:
+   -----------
+   For Comprehension are just a map,flatmap ,withFilter,and foreach behind the scenes
+   They look like loops ,but are not for one they can be assigned to a value 
+   They return collections like lists ,sets,options etc 
+   Any object with map,flatmap ,withFilter,and foreach can be used in for Comprehension
+  
+
+   6. Fold and Reduce
+      ---------------
+
+vi FoldAndReduce.scala
+
+object FoldAndReduce extends App {
+
+ val foldLeftResult =(1 to 10).foldLeft(0)((total:Int,next:Int) => total+next)
+ println(foldLeftResult)
+
+//foldLeft(0) ,0 is seed ,goes on adding to left items
+
+ val foldLeftResult1 = (1 to 10).foldLeft(0) {
+                           (total:Int,next:Int) =>println(s"Total:$total,Next:$next")
+                           total+next
+                        }
+ println(foldLeftResult1)
+
+ println("---------")
+ val reduceLeftResult =(1 to 10).reduceLeft {
+                           (total:Int,next:Int) =>println(s"Total:$total,Next:$next")
+                           total+next
+                        } // don't need seed
+ println(reduceLeftResult)
+
+ println("---------")
+
+ val foldRightResult1 = (1 to 10).foldRight(0) {
+                           (next:Int,total:Int) =>println(s"Total:$total,Next:$next")
+                           total+next
+                        }
+ println(foldRightResult1) // next and total got swapped here
+
+  println("---------")
+ val reduceRightResult =(1 to 10).reduceRight {
+                           (next:Int,total:Int) =>println(s"Total:$total,Next:$next")
+                           total+next
+                        } // don't need seed
+ println(reduceRightResult)
+
+ println((1 to 10).sum) 
+ println((1 to 10).product) // 10! 
+ 
+ println((1 to 10) .foldLeft(0) (_ + _ )) // shortHand 
+
+ }
+
+Priyabrats-MacBook-Air:scala pbishwal$ scalac FoldAndReduce.scala
+Priyabrats-MacBook-Air:scala pbishwal$ scala FoldAndReduce
+55
+Total:0,Next:1
+Total:1,Next:2
+Total:3,Next:3
+Total:6,Next:4
+Total:10,Next:5
+Total:15,Next:6
+Total:21,Next:7
+Total:28,Next:8
+Total:36,Next:9
+Total:45,Next:10
+55
+---------
+Total:1,Next:2
+Total:3,Next:3
+Total:6,Next:4
+Total:10,Next:5
+Total:15,Next:6
+Total:21,Next:7
+Total:28,Next:8
+Total:36,Next:9
+Total:45,Next:10
+55
+---------
+Total:0,Next:10
+Total:10,Next:9
+Total:19,Next:8
+Total:27,Next:7
+Total:34,Next:6
+Total:40,Next:5
+Total:45,Next:4
+Total:49,Next:3
+Total:52,Next:2
+Total:54,Next:1
+55
+---------
+Total:10,Next:9
+Total:19,Next:8
+Total:27,Next:7
+Total:34,Next:6
+Total:40,Next:5
+Total:45,Next:4
+Total:49,Next:3
+Total:52,Next:2
+Total:54,Next:1
+55
+55
+3628800
+55
+
+   Conclusion:
+   -----------
+   foldLeft and foldRight will perform a reduction operation with seed value 
+   reduceLeft and reduceRight will perform a reduction operation with seed value
+   fold and reduces can be applied to list,sets,maps,streams,strings,even options 
+
+
+   7. Zip
+      ---
+scala> val a = List(1,2,3,4) 
+a: List[Int] = List(1, 2, 3, 4)
+
+scala> val b = List(5,6,7,8) 
+b: List[Int] = List(5, 6, 7, 8)
+
+scala> println(a zip b) 
+List((1,5), (2,6), (3,7), (4,8))
+
+scala> println((1 to 5) zip (6 to 9)) 
+Vector((1,6), (2,7), (3,8), (4,9)) // 5 gets dropped 
+
+scala> println((1 to 2) zip (6 to 9))
+Vector((1,6), (2,7)) // 8,9 gets dropped
+
+  Conclusion:
+  ----------
+  Zip intertwines 2 collections
+  Zip result will be size of shorter collection
+  zip can be applied to list,sets,maps,streams,strings,even options 
+
+
+  8. Finding your Methods and Function
+     ---------------------------------
+
+scala> List(1,2,3,4,6).partition(x => x%2 !=0) 
+res9: (List[Int], List[Int]) = (List(1, 3),List(2, 4, 6))
+
+scala> List("Red","Blue","Green","Purple","Orange","Pink").groupBy(x=>x.head) 
+res10: scala.collection.immutable.Map[Char,List[String]] = Map(G -> List(Green), B -> List(Blue), P -> List(Purple, Pink), R -> List(Red), O -> List(Orange))
+
+scala> (1 to 100).takeRight(10)
+res11: scala.collection.immutable.Range = Range 91 to 100
+
+scala> (1 to 100).takeWhile(x=> x<40) 
+res12: scala.collection.immutable.Range = Range 1 to 39
+
+
+  9. Solving Functionally with Scala
+     -------------------------------
+
+scala> val groceries = List("Apples","Milk","Naan","Egg","Oranges","Almonds","Peanut Butter") 
+groceries: List[String] = List(Apples, Milk, Naan, Egg, Oranges, Almonds, Peanut Butter)
+
+scala> groceries zip ( 1 to 1000) 
+res13: List[(String, Int)] = List((Apples,1), (Milk,2), (Naan,3), (Egg,4), (Oranges,5), (Almonds,6), (Peanut Butter,7))
+
+scala> groceries.zipWithIndex
+res14: List[(String, Int)] = List((Apples,0), (Milk,1), (Naan,2), (Egg,3), (Oranges,4), (Almonds,5), (Peanut Butter,6))
+
+scala> groceries.zipWithIndex.map(t=>(t._1,t._2+1)) 
+res16: List[(String, Int)] = List((Apples,1), (Milk,2), (Naan,3), (Egg,4), (Oranges,5), (Almonds,6), (Peanut Butter,7))
+
+scala> groceries.zipWithIndex.map(t=>(t._1,t._2+1)).map(t=>t.swap)
+res17: List[(Int, String)] = List((1,Apples), (2,Milk), (3,Naan), (4,Egg), (5,Oranges), (6,Almonds), (7,Peanut Butter))
+
+scala> groceries.zipWithIndex.map(t=>(t._1,t._2+1)).map(t=>t.swap).map(t=>s"${t._1}.${t._2}")
+res18: List[String] = List(1.Apples, 2.Milk, 3.Naan, 4.Egg, 5.Oranges, 6.Almonds, 7.Peanut Butter)
+
+scala> groceries.zipWithIndex.map(t=>(t._1,t._2+1)).map(t=>t.swap).map(t=>s"${t._1}.${t._2}").mkString("\n")
+res19: String =
+1.Apples
+2.Milk
+3.Naan
+4.Egg
+5.Oranges
+6.Almonds
+7.Peanut Butter
+
+scala> groceries.view.zipWithIndex.map(t=>(t._1,t._2+1)).map(t=>t.swap).map(t=>s"${t._1}.${t._2}").mkString("\n")
+res20: String =
+1.Apples
+2.Milk
+3.Naan
+4.Egg
+5.Oranges
+6.Almonds
+7.Peanut Butter
+
+     
+
+
+
+   

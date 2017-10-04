@@ -1,0 +1,330 @@
+Module 9 :  Collection Basics
+			=================
+
+   1. Lists
+      ------
+Lists are immutable collections with duplicates and index access.      
+
+:: - method 
+
+scala> Nil
+res0: scala.collection.immutable.Nil.type = List()
+
+scala> 5::Nil
+res2: List[Int] = List(5)
+
+its same thing as 
+scala> Nil.::(5)
+res3: List[Int] = List(5)
+
+scala> 4::5::Nil
+res4: List[Int] = List(4, 5)
+
+vi Lists.scala
+
+object Lists extends App {
+ val a = List(1,2,3,4,5)
+ val a2 = List.apply(1,2,3,4,5)
+ val a3 = 1::2::3::4::5::Nil
+
+ println(a.head) //1
+ println(a.tail) // 2,3,4,5
+ println(a.init) // 1,2,3,4
+ println(a.last) // 5 
+
+ println(a(3)) // get 4th ele,as starts from 0
+ println(a.min)
+ println(a.max)
+ println(a.isEmpty)
+ println(a.nonEmpty)
+ println(a.updated(3,100)) 
+ 
+ println(a.mkString(",")) // takes List and seperates by , 
+ println(a.mkString("**"))
+ println(a.mkString("[","**","]"))
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Lists.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Lists
+1
+List(2, 3, 4, 5)
+List(1, 2, 3, 4)
+5
+4
+1
+5
+false
+true
+List(1, 2, 3, 100, 5)
+1,2,3,4,5
+1**2**3**4**5
+[1**2**3**4**5]
+
+  Conclusion :
+  -----------
+  Lists are immutable Collections ,duplicates allowed ,access by index,searchable
+  Nil is an empty List 
+  Lists can also be created from companion object , and the apply method 
+  Lists have many of the same functional properties as other collections 
+
+
+   2 .Sets
+      ----
+ Collectiosn with no duplicates 
+ 
+vi Sets.scala
+
+object Sets extends App {
+ val set =Set(1,2,3,4)
+ val set2 =Set(1,2,3,4,5)
+ val set3 =Set(1,2,3,4,5,6)
+ val set4 =Set(1,2,3,4,5,6,6,7) 
+
+ println(set)
+ println(set2)
+ println(set3)
+ println(set4) 
+
+ val set5 =Set(1,2)
+ println(set diff set4) // empty 
+ println(set4 diff set) //Set(5,6,7) 
+
+ println(set union set3) 
+ println(set intersect set3) 
+ 
+ println(set ++ set2) // same as union ,accepts other collection ++
+ println(set ++ List(15,19,20)) 
+
+ println(set -- set5) 
+ println(set -- Set(3,4,5)) // -- works with Set
+ println(set -3) // - work with single element
+
+ println(set.apply(4)) 
+ println(set.contains(10) 
+
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Sets.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Sets
+Set(1, 2, 3, 4)
+Set(5, 1, 2, 3, 4)
+Set(5, 1, 6, 2, 3, 4)
+Set(5, 1, 6, 2, 7, 3, 4)
+Set()
+Set(5, 6, 7)
+Set(5, 1, 6, 2, 3, 4)
+Set(1, 2, 3, 4)
+Set(5, 1, 2, 3, 4)
+Set(20, 1, 2, 3, 19, 4, 15)
+Set(3, 4)
+Set(1, 2)
+Set(1, 2, 4)
+true
+false
+
+  Conclusion:
+  -----------
+  Sets are collection with no duplicate elements ,no search by index ,but fast querying ,unordered 
+  Sets typically are more mathematically powerful than lists 
+  apply returns true or false 
+
+
+
+  3. MAPS
+     -----
+
+vi Maps.scala
+
+object Maps extends App {
+ val m = Map.apply((1,"One") ,(2,"Two") ,(3,"Three"))
+ val m2=Map((1,"One") ,(2,"Two") ,(3,"Three"))
+ 
+ val t:(Int,String) =3->"Three" // t is tuple, -> is part of Any
+ println(t) 
+
+ val m3=Map(1->"One" ,2->"Two" ,3->"Three")
+ println(m3.get(1)) //Some("One")
+ println(m3.apply(1))
+ println(m3(1)) //"One"
+ println(m3.get(4)) //None
+ //println(m3(4)) // Error 
+ 
+ println(m3.toList) // converts to List 
+ println(m3.keys) // return a set    
+ println(m3.keySet)
+ println(m3.values) //MapLike
+ println(m3.values.toList) 
+
+ val s = new String("Co") 
+ val s2 = "Co"
+ println(s == s2) // true 
+ println(s eq s2) // false ,does s points to same object as s2 
+
+ val co=Symbol("Co")
+ val co2='Co // symbol another way 
+ println(co == co2) //true 
+ println(co eq co2) // true 
+
+ val elements:Map[Symbol,String] =Map('Co->"Cobalt" ,'H->"Helium" ,'Pb -> "Lead") 
+ println(elements.get('Co)) 
+
+}
+Priyabrats-MacBook-Air:src pbishwal$ scalac Maps.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Maps
+(3,Three)
+Some(One)
+One
+One
+None
+List((1,One), (2,Two), (3,Three))
+Set(1, 2, 3)
+Set(1, 2, 3)
+MapLike.DefaultValuesIterable(One, Two, Three)
+List(One, Two, Three)
+true
+false
+true
+true
+Some(Cobalt)
+
+   Conclusion:
+   ----------
+   Maps are table like collection that stores keys and values 
+   Internally ,maps are a collection of tuples and can be operated on such 
+   Symbols ,are like Strings ,but guranted to be interned ,perfect for maps .
+
+
+   4. Arrays and Repeated Parameters
+      ------------------------------
+
+vi Arrays.scala       
+
+object Arrays extends App {
+  val a:Array[Int]=Array(1,2,3,4) // int[] 
+  
+  println(a.head)
+  println(a.tail)
+  println(a.init) // all ele except last 
+  println(a.last)
+  println(a.apply(2)) 
+  println(a.max)
+  println(a.isEmpty) 
+  
+ def repeatedParameterMethod(x:Int,y:String ,z:Any*) = {
+        println(z) // wrappedArray
+        "%d %ss give you %s".format(x,y,z.mkString(","))
+  }
+ 
+ repeatedParameterMethod(3,"egg","a delicious sandwich","protein","high cholesterol") 
+ println(repeatedParameterMethod(3,"egg","a delicious sandwich","protein","high cholesterol")) 
+ println(repeatedParameterMethod(3,"egg","a delicious sandwich","protein","high cholesterol")) 
+ println(repeatedParameterMethod(3,"egg",List("a delicious sandwich","protein","high cholesterol"):_*)) // _* -breaks apart the list so that it can fit in to repeated Param
+
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Arrays.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Arrays
+1
+[I@368102c8
+[I@6996db8
+4
+3
+4
+false
+WrappedArray(a delicious sandwich, protein, high cholesterol)
+WrappedArray(a delicious sandwich, protein, high cholesterol)
+3 eggs give you a delicious sandwich,protein,high cholesterol
+WrappedArray(a delicious sandwich, protein, high cholesterol)
+3 eggs give you a delicious sandwich,protein,high cholesterol
+List(a delicious sandwich, protein, high cholesterol)
+3 eggs give you a delicious sandwich,protein,high cholesterol
+
+
+
+
+   Conclusion:
+   -----------
+   Arrays in scala are converted to a primitive array on the JVM
+   Behaviour wise in scala ,they are similar to Lists 
+   Arrays are mutable,so be careful 
+   Repeated Parameters use an Array to hold possible extra Parameters
+
+
+
+   5. Ranges
+      ------
+vi Ranges.scala
+object Ranges extends App {
+  var r = 1 to 10 // include 10
+  var r2 = 1 until 10 // exclude 10
+  
+  println(r)
+  println(r2) 
+  println(r2.head)
+  println(r2.tail)
+  
+ val r3 = 2 to 10 by 2 
+ println(r3) 
+ val r4 = 10 to 2 by -2 
+ println(r4) 
+
+ val r5 =('a' to 'z') ++ ('A' to 'Z') 
+ println(r5) 
+
+ val r6 = Range(1,10) 
+ println(r6) // excludes 10
+ 
+ val r7 = Range(1,10,2) // 2 is step
+ println(r7) 
+
+ val r8 = Range.inclusive(1,10)
+ println(r8) 
+ 
+ val r9 = Range.inclusive(1,10,2)
+ println(r9) 
+
+ for (i <- 1 to 10 ) println(i+1))
+
+ println("------")
+ for (i <-2 to 10 by 2) println(i+1) )
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac Ranges.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala Ranges
+Range 1 to 10
+Range 1 until 10
+1
+Range 2 until 10
+Range 2 to 10 by 2
+Range 10 to 2 by -2
+Vector(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z)
+Range 1 until 10
+inexact Range 1 until 10 by 2
+Range 1 to 10
+inexact Range 1 to 10 by 2
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+------
+3
+5
+7
+9
+11
+
+
+   Conclusion:
+   ----------
+   Ranges are way to create a collection of numbers or characters without specifying them one by one 
+   Treat ranges with same methods as you would a List 
+   You can create ranges with a factory in the Range companion object 
+   

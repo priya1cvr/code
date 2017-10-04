@@ -1,0 +1,484 @@
+https://www.journaldev.com/8958/scala-interview-questions-answers
+
+Scala is a Hybrid Functional (Object-Oriented and Functional) Programming JVM Language.
+Statically-Typed Language means that Type checking is done at compile-time by compiler, not at run-time.
+Examples:- Java, Scala, C, C++, Haskell etc.
+Dynamically-Typed Language means that Type checking is done at run-time, not at compile-time by compiler. 
+Example:- Groovy, JavaScript, Ruby, Python, Smalltalk etc.
+
+Java is not a Pure Object-Oriented Programming (OOP) Language because it supports the following two Non-OOP concepts:
+	Java supports primitive data types. They are not objects.
+    Java supports Static members. They are not related to objects.
+    
+Yes, Scala is a Pure Object-Oriented Programming Language because in Scala, everything is an Object and everything is a value. 
+Functions are values and values are Objects.
+Scala does not have primitive data types and also does not have static members.    
+
+Yes, Scala supports all Functional Programming (FP) concepts. 
+Java 8 has introduced some Functional Programming constructs, but it does NOT support all Functional Programming concepts.
+For instance, Java 8 does not support Pattern Matching, Function Currying, Implicits etc.
+
+Scala, it has one major Drawback: Backward Compatibility Issue. If we want to upgrade to latest version of Scala, 
+then we need to take care of changing some package names, class names, method or function names etc.
+
+In Java the super class of all classes (Java API Classes or User Defined Classes) is  - java.lang.Object. 
+In  Scala, the super class of all classes or traits is  - “Any” class
+
+In Scala, if we don’t mention any access modifier to a method, function, trait, object or class, the default access modifier is “public”. 
+Even for Fields also, “public” is the default access modifier.
+Because of this default feature, Scala does not have “public” keyword.
+
+Type Inference- Types can be inferred by the Scala Compiler at compile-time 
+Types means Data type or Result type. 
+In simple words, determining the type of a variable or expression or object etc at compile-time by compiler is known as “Type Inference”.
+
+Similarities between Scala’s Int and Java’s java.lang.Integer:
+    Both are classes.
+    Both are used to represent integer numbers.
+    Both are 32-bit signed integers.
+
+Differences between Scala’s Int and Java’s java.lang.Integer:
+    Scala’s Int class does not implement Comparable interface.
+    Java’s java.lang.Integer class implements Comparable interface.
+    
+when we use Int in a Scala program, it will automatically convert into RichInt to utilize all methods available in that Class. 
+We can say that RichInt is an Implicit class of Int.    
+
+In Scala, Nothing is a Type (final class). 
+It is defined at the bottom of the Scala Type System that means it is a subtype of anything in Scala. 
+There are no instances of Nothing.
+
+Use Cases of Nothing In Scala:-
+If Nothing does not have any instances, then when do we use this one in Scala Applications?
+    Nil is defined using Nothing (See below for example).
+    None is defined using Nothing.
+
+    object None extends Option[Nothing]
+    We can use Nothing as a return type of methods which never return.
+    We can use Nothing as a return type of methods which terminates abnormally.    
+    
+Nil is an object, which is used to represent an empty list. 
+It is defined in “scala.collection.immutable” package as shown below:    
+object Nil extends List[Nothing]
+
+Null is a Type (final class) in Scala. Null type is available in “scala” package as “scala.Null”. 
+It has one and only one instance that is null.
+In Scala, “null” is an instance of type scala.Null type.
+
+In Scala, Unit is used to represent “No value” or “No Useful value”. 
+Unit is a final class defined in “scala” package that is “scala.Unit”.
+
+Unit is something similar to Java’s void. But they have few differences.
+    Java’s void does not any value. It is nothing.
+    Scala’s Unit has one value ()
+    () is the one and only value of type Unit in Scala. However, there are no values of type void in Java.
+    Java’s void is a keyword. Scala’s Unit is a final class.
+Both are used to represent a method or function is not returning anything.
+
+REPL stands for Read-Evaluate-Print Loop.
+REPL is acts as an Interpreter to execute Scala code from command prompt.
+
+
+Object-Oriented style uses the following constructs to implement Loops:
+    Loop Constructs
+    Mutability
+    Side Effects
+
+We can implement same Loops differently in Functional way. It is Thread-Safe. 
+We can use the following two techniques to implement the loops in functional style:
+    Recursion
+    Tail-Recursion
+    Immutability
+    No Side-Effects
+
+
+Scala Application:
+In Scala, App is a trait defined in scala package like “scala.App”. 
+It defines main method. 
+If an Object or a Class extends this trait, then they will become as Scala Executable programs 
+automatically because they will inherit main method from Application.
+
+The main advantage of using App is that we don’t need to write main method. 
+The main drawback of using App is that we should use same name “args” to refer command line argument
+ because scala.App’s main() method uses this name.
+ 
+Without Scala App: 
+object MyApp {
+    def main( args: Array[String]){
+        println("Hello World!")
+    }
+} 
+
+With Scala App:
+object MyApp extends App{
+   println("Hello World!")
+}
+
+
+Java does not support Operator Overloading. Scala supports Operator Overloading.
+The reason is that Java does not want to support some misleading method names like “+*/”. 
+When we call 2 + 3 that means ‘+’ is not an operator, 
+it is a method available in Int class (or it’s implicit type). Internally, this call is converted into “2.+(3)“.
+
+
+Expression:
+Expression is a value that means it will evaluate to a Value. As an Expression returns a value, We can assign it to a variable.
+
+Example:- Scala’s If condition, Java’s Ternary operator.
+
+Statement:
+Statement defines one or more actions or operations. That means Statement performs actions. 
+As it does not return a value, we cannot assign it to a Variable.
+Example:- Java’s If condition.
+
+
+In Java, “If..Else” is a statement, not an expression. It does not return a value and cannot assign it to a variable.
+e.g 
+int year;
+ if( count == 0) year = 2014;
+ else year = 2015;
+
+In Scala, “If..Else” is an expression. It evaluates a value i.e. returns a value. We can assign it to a variable.
+ val year = if( count == 0) 2014 else 2015
+ 
+Is Scala an Expression-Based Language or Statement-Based Language? Is Java an Expression-Based Language or Statement-Based Language?
+  In Scala, everything is a value. All Expressions or Statements evaluates to a Value. 
+  We can assign Expression, Function, Closure, Object etc. to a Variable. 
+  So Scala is an Expression-Oriented Language.
+
+  In Java, Statements are not Expressions or Values. 
+  We cannot assign them to a Variable. So Java is not an Expression-Oriented Language. 
+  It is a Statement-Based Language. 
+
+Some features which are supported by Java, but not by Scala and Vice versa?
+    Java does not support Operator Overloading, but Scala supports it. e.g 2.+(3) - in scala not in java 
+    Java supports ++ and — operators , but Scala does not support them.
+    Java has Checked and Unchecked Exceptions, but Scala does not have Checked Exceptions.
+    Scala does not support break and continue statements, but Java uses them.
+    Scala does not have explicit Type casting, but Java supports this feature.
+    Scala supports Pattern Matching, but Java does not.
+    Java uses Primitive Data types, but Scala does not have.
+    Java supports static members, but Scala does not have static members concept.
+    Scala supports Implicits and Traits, Java does not support them.
+
+
+What is the difference between Function and Method in Scala?
+  Scala supports both functions and methods. We use same syntax to define functions and methods, there is no syntax difference.
+However, they have one minor difference:
+    a. We can define a method in a Scala class or trait. 
+        Method is associated with an object (An instance of a Class). 
+        We can call a method by using an instance of a Class. 
+        We cannot use a Scala Method directly without using object.
+    b. Function is not associated with a class or trait. 
+       It is defined in a Scala Package. 
+       We can access functions without using objects, like Java’s Static Methods.
+
+ 1. A method can appear in an expression as an internal value (to be called with arguments) 
+   but it can’t be the final value, while a function can:
+
+scala> val f =(x:Int)=>2*x
+f: Int => Int = <function1>
+
+scala> def m(x:Int)=2*x
+m: (x: Int)Int
+
+scala> m
+<console>:20: error: missing argument list for method m
+Unapplied methods are only converted to functions when a function type is expected.
+You can make this conversion explicit by writing `m _` or `m(_)` instead of `m`.
+       m
+       ^
+
+scala> f
+res1: Int => Int = <function1>
+
+2. Parameter list is optional for methods but mandatory for functions
+
+  scala> def m1 = 100
+m1: Int
+
+scala> def m2() = 100
+m2: ()Int
+
+//a function must have a parameter list
+scala> val f1 = => 100
+<console>:1: error: illegal start of simple expression
+val f1 = => 100
+         ^
+//a function's parameter list could be empty
+scala> val f2 = () => 100
+f2: () => Int = <function0>
+
+How many public class files are possible to define in Scala source file?
+
+In Java, we can define at-most one public class/interface in a Source file. 
+Unlike Java, Scala supports multiple public classes in the same source file.
+We can define any number of public classes/interfaces/traits in a Scala Source file.
+
+
+ default imports available in all Scala Programs:
+    java.lang package
+    scala package
+    scala.PreDef
+
+Scala has one and only operator that is “=” (equalto) operator. Other than this all are methods only.
+
+
+ Java uses the following keywords extensively:
+    ‘public’ keyword – to define classes, interfaces, variables etc.
+    ‘static’ keyword – to define static members.
+
+Scala does not required these two keywords. Scala does not have ‘public’ and ‘static’ keywords.
+    In Scala, default access modifier is ‘public’ for classes,traits, methods/functions, fields etc. 
+    That’s why, ‘public’ keyword is not required.
+    To support OOP principles, Scala team has avoided ‘static’ keyword. 
+    That’s why Scala is a Pure-OOP Langauge. It is very tough to deal static members in Concurrency applications.
+
+What is PreDef in Scala? What is the main purpose of PreDef in Scala?
+In Scala, PreDef is an object defined in scala package as “scala.PreDef”. It is an utility object.
+
+It defines many utility methods as shown below:
+    Console IO (print,println etc)
+    Collection utility methods
+    String utility methods
+    Implicit conversion methods
+    Assertion utility methods etc.
+
+
+Part 2
+======
+
+How do you prove that by default, Case Object is Serializable and Normal Object is not?
+scala> object MyNormalObject
+defined object MyNormalObject
+
+scala> MyNormalObject.isInstanceOf[Serializable]
+<console>:13: warning: fruitless type test: a value of type MyNormalObject.type cannot also be a Serializable
+       MyNormalObject.isInstanceOf[Serializable]
+                                  ^
+res15: Boolean = false
+
+scala> case object MyCaseObject
+defined object MyCaseObject
+
+scala> MyCaseObject.isInstanceOf[Serializable]
+res16: Boolean = true
+
+equals (==) vs eq  
+    ---------
+equals test for object equality ,instead of equals you can call ==
+eq is used to test if 2 objects are pointed to same object 
+
+
+scala> val s1 = "test"
+s1: String = test
+
+scala> val s2 = "test"
+s2: String = test
+
+scala> val s3 = new String("test") // new object s3
+s3: String = test
+
+scala> s1 eq s2 // both point to same object 
+res16: Boolean = true
+
+scala> s1 equals s2
+res17: Boolean = true
+
+scala> s1 == s2
+res18: Boolean = true
+
+scala> s1 == s3 // compares 2 instances i.e test and test ,so true 
+res19: Boolean = true
+
+scala> s1 eq s3 // compares 2 objects s1 is one obj and s3 is seperate .so false 
+res20: Boolean = false
+
+scala> s1 equals s3
+res21: Boolean = true
+
+scala>  val s4 = new String("test")
+s4: String = test
+
+scala> s3 eq s4
+res22: Boolean = false
+
+scala> s3 == s4
+res23: Boolean = true
+
+
+What is Diamond Problem? How Scala solves Diamond Problem?
+A Diamond Problem is a Multiple Inheritance problem. Some people calls this problem as Deadly Diamond Problem.
+In Scala, it occurs when a Class extends more than one Traits which have same method definition as shown below.
+
+      traitA
+     /	    \
+  traitB     traitC
+ 	\ /
+      class D	
+
+Unlike Java 8, Scala solves this diamond problem automatically by following some rules defined in Language. 
+Those rules are called “Class Linearization”.
+
+trait A{   
+  def display(){ println("From A.display")  }
+}
+trait B extends A{ 
+  override def display() { println("From B.display") }
+}
+trait C extends A{ 
+  override def display() { println("From C.display") }
+}
+class D extends B with C{ }
+
+object ScalaDiamonProblemTest extends App {
+    val d = new D
+    d.display
+}
+Priyabrats-MacBook-Air:src pbishwal$ scalac ScalaDiamondProblemTest.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala ScalaDiamonProblemTest
+From C.display
+
+Here output is “From C.display” form trait C. Scala Compiler reads “extends B with C” from right to left and takes “display” method definition from left most trait that is C.
+If you change - extends C with B the o/p will be From B.display
+
+Why Scala does NOT have “static” keyword? What is the main reason for this decision?
+The main reason to take this decision is to make Scala as a Pure Object-Oriented Language. “static” keyword means that we can access that class members without creating an object or without using an object. This is completely against with OOP principles.
+
+
+How to define Factory methods using object keyword in Scala? What is the use of defining Factory methods in object?
+In Scala, we use ‘object’ keyword to define Factory methods. 
+The main purpose of these Factory methods in Scala is to avoid using ‘new’ keyword. 
+Without using ‘new’ keyword we can create objects.
+
+class Person(val firstName: String, val middleName: String, val lastName: String){
+  def this(firstName: String, lastName: String){
+    this(firstName,"",lastName)
+  }
+}
+object Person{
+  def apply(val firstName: String, val middleName: String, val lastName: String) 
+        = new Person(firstName,middleName,lastName) // this is a factory method 
+
+  def apply(val firstName: String, val lastName: String) 
+        = new Person(firstName, lastName) // this is a factory method 
+}
+
+Now we can create Person objects without using new keyword or with new keyword upto your wish.
+
+val p1 = new Person("Scala","Java")
+or 
+val p1 = Person("Scala","Java")
+
+
+
+apply method: To compose or assemble an object from it’s components.
+unapply method: To decompose or dis-assemble an object into it’s components.
+
+class Foo(x:Int) {
+ def apply(y:Int) = x+y
+}
+
+object MagicApply extends App{
+  val foo = new Foo(10)
+  println(foo.apply(20)) 
+  println(foo(20)) // directly called apply using the object 
+}
+
+Priyabrats-MacBook-Air:src pbishwal$ scalac MagicApply.scala
+Priyabrats-MacBook-Air:src pbishwal$ scala MagicApply
+30
+30
+
+How do we declare a private Primary Constructor in Scala? 
+How do we make a call to a private Primary Constructor in Scala?
+
+Add ‘private’ just after class name 
+A simple way to enforce the Singleton pattern in Scala is to make the primary constructor private, 
+then put a getInstance method in the companion object of the class:
+
+class Brain private {
+    override def toString = "This is the brain."
+}
+object Brain {
+    val brain = new Brain
+    def getInstance = brain
+}
+
+object SingletonTest extends App {
+    // this won't compile
+    // val brain = new Brain
+    // this works
+    val brain = Brain.getInstance
+    println(brain)
+}
+
+A pure function is a function without any observable side-effects. 
+That means it returns always same results irrespective how many times we call it with same inputs.
+A pure function always gives same output for the same inputs.
+
+For Example:-
+
+scala> 10 + 20
+res0: Int = 30
+scala>
+scala> 10 + 20
+res0: Int = 30
+
+Here “+” a pure function available in Int class. It gives same result 30 for same inputs 10 and 30, irrespective how many times we call it.
+
+Compared to Java’s constructors, Auxiliary constructors have the following few differences:
+ The auxiliary constructors are called using “this” keyword.
+ All auxiliary constructor are defined with the same name that is “this”. In Java, we use class name to define constructors.
+ Each auxiliary constructor must start with a call to a previously defined auxiliary constructor or the primary constructor.
+ We use ‘def’ keyword to define auxiliary constructors like method/function definition. In Java, constructor definition and     Method definition is different.
+
+
+What is the use of ‘yield’ keyword in Scala’s for-comprehension construct?
+for/yield’ is used to iterate a collection of elements and generates new collection of same type. 
+It does not change the original collection. It generates new collection of same type as original collection type.
+scala> val list = List(1,2,3,4,5)
+list: List[Int] = List(1, 2, 3, 4, 5)
+
+scala> for(l <- list) yield l*2
+res0: List[Int] = List(2, 4, 6, 8, 10)
+
+Part-3
+======
+
+What is Option in Scala? What are Some and None? What is Option/Some/None Design Pattern in Scala?
+
+In Scala, Option is used to represent optional values that is either exist or not exist.
+Option is an abstract class. 
+Option has two subclasses: Some and None. 
+All three (Option, Some and None) are defined in “scala” package like “scala.Option”.
+
+ 	   Option[T] 
+ Some[T]		None
+ 
+ Scala Option[ T ] is a container for zero or one element of a given type. 
+ An Option[T] can be either Some[T] or None object, which represents a missing value. 
+ If Option contains zero elements that is None. If Option contains one element, that is Some.
+ 
+ For instance, the get method of Scala's Map produces Some(value) if a value corresponding to a 
+ given key has been found, or None if the given key is not defined in the Map.
+
+e.g : def get(val index: Int): Option[String]  
+If List contains elements, this get method returns “Some[String]” element available in that index position. 
+Otherwise, it returns “None” (that is no elements)
+
+Note: Some is a case class and None is an Object. 
+    As both are case class/object, we can use them in Pattern Matching very well.
+
+
+Q.What is Either in Scala? What are Left and Right in Scala? Explain Either/Left/Right Design Pattern in Scala?
+
+In Scala, Either is an abstract class. 
+It is used to represent one value of two possible types. It takes two type parameters: Either[A,B].
+
+It exactly have two subtypes: Left and Right. 
+If Either[A,B] represents an instance A that means it is Left. 
+If it represents an instance B that means it is Right.
+This is known as Either/Left/Right Design Pattern in Scala.
+
+

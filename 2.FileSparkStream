@@ -1,0 +1,28 @@
+// 2. Example of File Spark Stream 
+
+package com.SimpleSparkDemo
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming._
+import org.apache.spark.storage.StorageLevel
+
+
+object FileSparkStream extends App {
+  
+  // Create a local StreamingContext with two working thread and batch interval of 1 second.
+ // The master requires 2 cores to prevent from a starvation scenario.
+
+  val conf = new SparkConf().setAppName("File Stream").setMaster("local[2]")
+  val ssc = new StreamingContext(conf,Seconds(10))  // Seconds(1) - batch size of 1 
+  // time 1 is 0-1 sec , time 2 is 1-2 sec 
+  
+  val lines = ssc.textFileStream("/Users/pbishwal/Documents/Techie/SparknScala/scala/SparkStreamingUsingScala/fileDemo")
+  
+    
+  lines.flatMap(x=>x.split(" ")).map(x=>(x,1)).reduceByKey(_+_).print()
+  
+  ssc.start() // Start the computation
+  ssc.awaitTermination() // Wait for the computation to terminate
+
+}

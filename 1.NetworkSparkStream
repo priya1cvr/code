@@ -1,0 +1,29 @@
+package com.SimpleSparkDemo
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming._
+import org.apache.spark.storage.StorageLevel
+
+object NetworkSparkStream extends App {
+  val conf = new SparkConf().setAppName("Network Stream").setMaster("local[2]")
+  val ssc = new StreamingContext(conf,Seconds(10))  // Seconds(1) - batch size of 1 
+  // time 1 is 0-1 sec , time 2 is 1-2 sec 
+  val lines = ssc.socketTextStream("localhost", 40412) 
+  lines.flatMap(x=>x.split(" ")).map(x=>(x,1)).reduceByKey(_+_).print()
+  ssc.start()
+  ssc.awaitTermination()
+}
+
+/*
+<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-core_2.11</artifactId>
+  		<version>2.2.0</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-streaming_2.10</artifactId>
+  		<version>2.2.0</version>
+  */
+  
+  

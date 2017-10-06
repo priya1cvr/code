@@ -1,0 +1,33 @@
+package com.SimpleSparkDemo
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming._
+import org.apache.spark.storage.StorageLevel
+
+
+object StatefulWordCount extends App {
+  
+  def updateFunction(newValues: Seq[Int], runningCount: Option[Int])  = {
+      val newCount = newValues.sum + runningCount.getOrElse(0) // sum represent existing value of particular type a 
+      new Some(newCount)
+  }
+  
+  val conf = new SparkConf().setAppName("Stateful Word Count").setMaster("local[2]")
+  val ssc = new StreamingContext(conf,Seconds(10))  // Seconds(1) - batch size of 10 
+  val lines = ssc.socketTextStream("localhost", 40412) 
+  ssc.checkpoint("/Users/p.kumar.bishwal/Documents/python/workspace/output") // to receive streaming application if it fails 
+  val words = lines.flatMap (_.split(" ")  )
+  val pairs = words.map( word => (word,1) )
+  val wordCounts = pairs.reduceByKey(_+_)
+  val totalWordcount = wordCounts.updateStateByKey(updateFunction _)
+  /*
+   * The update function will be called for each word, with newValues having a sequence of 1’s 
+   * (from the (word, 1) pairs) and the runningCount having the previous count.
+   */
+  totalWordcount.print()
+  
+  ssc.start()
+  ssc.awaitTermination()
+
+}

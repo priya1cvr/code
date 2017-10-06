@@ -1,3 +1,6 @@
+ How to maintain Past of Particular Stream ? 
+ for e.g  I want to see when was the last time the shares of Infosys gone up 
+
 package com.SimpleSparkDemo
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._

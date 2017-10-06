@@ -1,0 +1,70 @@
+//5. Streaming Transformations on DStreams
+
+package com.SimpleSparkDemo
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming._
+import org.apache.spark.storage.StorageLevel
+
+
+object TransformSparkStreaming extends App {
+  
+  
+  def updateFunction(newValues: Seq[Int], runningCount: Option[Int])  = {
+      val newCount = newValues.sum + runningCount.getOrElse(0) // sum represent existing value of particular type a 
+      new Some(newCount)
+  }
+  
+  val conf = new SparkConf().setAppName("Stateful Word Count").setMaster("local[2]")
+  val ssc = new StreamingContext(conf,Seconds(10))  // Seconds(1) - batch size of 10 
+  // create a new line 
+  val myFile = ssc.sparkContext.textFile("/Users/p.kumar.bishwal/Documents/python/praticeCodes/newFile.txt")
+  val wordPair= myFile.flatMap( x => x.split(" ") ).map( word => (word,1) )
+  val oldWordCounts =wordPair.reduceByKey(_+_)
+  
+  val lines = ssc.socketTextStream("localhost", 40412) 
+
+  val words = lines.flatMap (_.split(" ")  )
+  val pairs = words.map( word => (word,1) )
+  val wordCounts = pairs.reduceByKey(_+_)
+
+  val joinRDD = wordCounts.transform(rdd =>{
+    rdd.join(wordPair).map{
+        case(word,(oldCount,newCount))=>{
+          (word,oldCount+newCount)
+        }
+          
+    }
+  })
+  
+  joinRDD.print()
+  
+  ssc.start()
+  ssc.awaitTermination()
+
+
+}
+
+/*
+<dependencies>
+  	<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-core_2.11</artifactId>
+  		<version>1.5.2</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-streaming_2.11</artifactId>
+  		<version>1.5.2</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-streaming-twitter_2.11</artifactId>
+  		<version>1.6.2</version>
+  	</dependency>
+  </dependencies>
+  
+  Note that the artifactId: 2.11 refers to scala version and 
+  version: 1.5.2 or 1.6.2 refers to the library (spark-core or spark-streaming-twitter) version
+*/

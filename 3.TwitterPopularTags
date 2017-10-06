@@ -68,3 +68,22 @@ object TwitterPopularTags extends App   {
  
  
 }
+
+/*
+<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-core_2.11</artifactId>
+  		<version>1.5.2</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-streaming_2.11</artifactId>
+  		<version>1.5.2</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.apache.spark</groupId>
+  		<artifactId>spark-streaming-twitter_2.11</artifactId>
+  		<version>1.6.2</version>
+  	</dependency>
+  </dependencies>
+*/

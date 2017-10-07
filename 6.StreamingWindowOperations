@@ -26,3 +26,29 @@ object WindowSparkStreaming extends App {
 
 }
 
+/*
+Windowed Transformation :
+=>Allow you to compute results accross a longer time period than your batch interval 
+=>Example  :top seller from past one hour 
+  you might process data every one second (batch interval )
+  But maintain a window of 1 hr 
+=>The window slides as the time goes on to represent batches within the window interval 
+
+Batch Interval - is how often data is captured in DStream
+Slide Interval - is how often a windowed transformation is computed 
+Window Interval - is how far back time the windowed transformation goes .
+
+e.g each batch contains 1 sec of data(batch interval) 
+we setup a window interval of 3 secs and slide interval of 2 secs
+slide interval of 2 secs - means every 2 secs look back worth 3 secs of data and compute the result 
+
+Windowed transformations:Code
+- the batch interval is set up with your spark context ,as usual :
+ val ssc = new StreamingContext(sparkConf,Seconds(2)) 
+- you can use reduceByWindow() and reduceByKeyAndWindow() to aggregate data across a longer period of time 
+ val wordCounts =pairs.reduceByKeyAndWindow((x:Int,y:Int)=>(x+y) ,Seconds(30), Seconds(10))
+
+
+
+
+*/

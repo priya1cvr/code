@@ -1,0 +1,35 @@
+Spark Streaming is Fault tolerant
+=================================
+
+=> Incoming data is replicated to atleast 2 worker nodes 
+=> A checkpoint directory can be used to store state in case we need to restart the sytream (to HDFS,S3 etc) 
+   - just use ssc.checkpoint in your streamingContext 
+   - checkpoints are required if you are using stateful data 
+   
+  But there are limits .
+  - What if your receiver fails ? 
+  - What if your driver scriipt fails ? 
+  
+  Dealing with receiver failure 
+  -----------------------------
+  Some receivers are better than others 
+  If your twitter receiver fails for e.g ,that data is just plain lost 
+  Same with configuration of Kafka or Flume ,that only push data to Spark 
+  But receivers based on replicated ,reliable data sources are more resilient .
+    - HDFS 
+    - Directly consumed Kafka
+    - Pull-based Flume 
+    
+  Dealing with Driver Script failure 
+  -----------------------------
+   
+   Altough data worker nodes deal with is replicated,your driver node can be a single point of failure .
+   Instead of working with streaming Context you created directly ,use the one returned by StreamingContext.getOrCreate()
+      - and use a checkpoint directory on a distributed FS 
+      - ssc.getOrCreate(checkpointDir,<function that creates new Streaming Context>)
+      - either gets a streaming context from the checkpoint dir ,or creates a new One 
+
+   Then if you need to restart your driver script ,it can pick up from the checkpoint directory 
+   Still need to monitor the driver node for failure ,and restart the script if it does .
+       Zookeeper and spark's built in cluster manager can do this for you(use -supervise on spark-submit )
+      

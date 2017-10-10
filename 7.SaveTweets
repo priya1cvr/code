@@ -1,0 +1,69 @@
+
+
+package com.SimpleSparkDemo
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.streaming._
+import org.apache.spark.streaming.twitter._
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{StreamingContext,Seconds}
+import org.apache.log4j.Level
+import org.apache.spark.streaming.twitter.TwitterUtils
+import twitter4j._
+
+
+object SaveTweets extends App {
+  
+  // configure twitter credentials 
+  System.setProperty("twitter4j.oauth.consumerKey", "9o6bMytdK03TezQ3H8x83UklJ")
+  System.setProperty("twitter4j.oauth.consumerSecret", "1dFuzX9lF9mbUoJYc6gwC9pjTDY0s3dG2tq9veLaSHkzIWClX3")
+  System.setProperty("twitter4j.oauth.accessToken", "913410683135434753-yp8Bzpil1P7vWcf1MrdllgkF1fFiwWm")
+  System.setProperty("twitter4j.oauth.accessTokenSecret", "EBfYdCzBjnMXsVLFCIGAd4djoYNMWTFovUUnAS6ZdWxOy")
+
+  val conf = new SparkConf().setAppName("Save Tweets").setMaster("local[2]")
+  val ssc = new StreamingContext(conf,Seconds(1))  // Seconds(1) - batch size of 1 
+  
+  //Create DStream from twitter using streaming Context 
+  val tweets = TwitterUtils.createStream(ssc,None)
+  tweets.print(10)
+  
+  println("hello")
+  // Now extract the text of each status update into RDD's using map()
+  val statuses = tweets.map(status => status.getText())
+  //statuses.print() - this dStream contains only text 
+  
+  //Here is just one way to dump every partition of every stream to individual files 
+  //statuses.saveAsTextFiles("/Users/pbishwal/Documents/Techie/SparknScala/scala/SparkStreamingUsingScala/Tweets", "txt")
+  
+  // But lets do it the hard way to get bit more control 
+  
+  //Keep count of how many tweets we received as we can stop automatically 
+  var totalTweets:Long = 0 
+  
+  // pull out each individual RDD from the DStream and time and associate it with some computation 
+  statuses.foreachRDD((rdd,time) => {
+    // don't bother with empty batches 
+    if(rdd.count() > 0) {
+      // combine each partitions result into single RDD:
+      val repartitionRDD = rdd.repartition(1).cache()
+      
+      //val repartitionRDD = rdd.cache() // removing repartition will create more no. of partitions in the specified folder 
+      //cache means same rdd stays in memory and needn't be recreated 
+      // And print out a directory with results 
+      
+      repartitionRDD.saveAsTextFile("/Users/pbishwal/Documents/Techie/SparknScala/scala/SparkStreamingUsingScala/tweets/Tweets_"+time.milliseconds.toString())
+      //Stop once we have collected 1000 Tweets 
+      totalTweets += repartitionRDD.count()
+      println("Tweet Count :" + totalTweets) 
+      if(totalTweets > 1000) {
+        System.exit(0)
+      }
+    }
+  })
+  
+  
+  ssc.start() // Start the computation
+  ssc.awaitTermination() // Wait for the computation to terminate
+
+  
+}

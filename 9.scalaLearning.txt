@@ -1,0 +1,145 @@
+
+
+What is pattern Matching ?
+
+scala> val n =2 
+n: Int = 2
+
+scala> n match { case 1 =>println("its one") 
+     | case 2 => println("its two") 
+     | case _ => println("something else") //default case 
+     }
+its two
+
+
+---
+Basic Matching in Scala 
+
+def doIt(x:Any) =x match {
+	case _:Int => println("Its an Int")
+	case _:String => println("Its a String")
+	case _ => println("Something Else ")
+}
+
+scala> val n =10
+n: Int = 10
+
+scala> doIt(n) 
+Its an Int
+
+scala> doIt("ABC")
+Its a String
+
+scala> doIt(32.0)
+Something Else 
+
+def doIt2(x:Any) =x match {
+	case n:Int => println(s"Its an Int, $n")  // whatever x is passed will be stored in corresponding datatype match 
+	case s:String => println(s"Its a String, $s")
+	case _ => println("Something Else ")
+}
+
+
+scala> doIt2(n) 
+Its an Int, 10
+
+scala> doIt2("ABC")
+Its a String, ABC
+
+scala> doIt(32.0)
+Something Else 
+
+
+
+
+def doIt3(x:Int) =x match { 
+	case n if (n%2==0) =>println("its even") 
+	case n if (n%2==1) => println("its odd") 
+	case default => println(s"something else, $default") 
+	}
+
+scala> doIt3(20)
+its even
+
+scala> doIt3(21)
+its odd
+
+doIt3("hello") // type mismatch 
+
+
+
+--- 
+Matching More than 1 value 
+
+def doIt3(a:Int , b:Int) =(a,b) match { 
+	case (1,1)  =>println("1,1") 
+	case (1,_)  => println("1,_") 
+	case (_,2) => println("_,2")
+	case default => println("default") 
+	}
+
+scala> doIt3(1,3)
+1,_
+
+scala> doIt3(3,2)
+_,2
+
+
+---
+Patterns and case classes in scala
+
+import java.time.LocalDateTime 
+scala> case class cashFlow(amount:Double,currency:String ,duration:LocalDateTime)
+defined class cashFlow
+
+scala> val c1 = cashFlow(3000.0,"GBP",LocalDateTime.now)
+c1: cashFlow = cashFlow(3000.0,GBP,2017-09-18T20:39:24.354)
+
+
+scala> c1 match{
+     |   case cashFlow(v,"USD",_) => println("US cashFlow")
+     |   case cashFlow(v,"GBP",_) => println(s"UK cashFlow ,$v")
+     | }
+<console>:16: warning: match may not be exhaustive.
+It would fail on the following input: cashFlow(_, (x: String forSome x not in ("GBP", "USD")), _)
+       c1 match{
+       ^
+UK cashFlow ,3000.0
+
+
+
+lets have another case class
+case class Address(city:String,country:String)
+case class Person(name:String,age:Int,address:Address)
+
+val a1 =Address("London","UK")
+val a2 =Address("New York","US")
+
+val p1 =Person("Fred",41,a1)
+val p2 =Person("James", 42,a2) 
+
+scala> p1 match {
+        case Person(n,_,Address("London",_)) =>println(s"$n lives in London")
+      }
+Fred lives in London
+
+
+
+---
+Using Guards in Scala 
+
+val p1 =Person("Fred",41,a1)
+val p2 =Person("James", 23,a2) 
+
+def matchAge(p:Person) = p match {
+	case Person(n,a,_) if a>30 =>println(s"$n is older than 30")
+	case Person(n,a,_) if a<=30 =>println(s"$n is youngster ")
+      }
+
+scala> matchAge(p2)
+James is youngster 
+
+scala> matchAge(p1)
+Fred is older than 30
+
+

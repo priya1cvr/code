@@ -20,3 +20,15 @@ val connectionProperties = new java.util.Properties()
 
 finalresults.coalesce(1).write.mode("append").option("driver","com.teradata.jdbc.TeraDriver").jdbc("jdbc:teradata://EDWITS.corp.apple.com", <"teradata table name">, connectionProperties)
 spark-shell --master yarn --driver-memory 24g --driver-cores 2 --executor-memory 28g --executor-cores 2 --num-executors 300 --queue adhoc.applemusic_analytics_hadoop --conf spark.network.timeout=600s --conf spark.sql.shuffle.partitions=1000 --conf spark.yarn.executor.memoryOverhead=2048 --jars /Users/kkumar9/tdjars/tdgssconfig.jar,/Users/kkumar9/tdjars/terajdbc4.jar -i <(echo 'val startDate = "'$startDate'"'; echo 'val endDate = "'$endDate'"';cat us19_daily_weekly_aggr.scala)
+
+JOB vs Task
+-----------
+In MapReduce, the highest-level unit of computation is a job. 
+A job loads data, applies a map function, shuffles it, applies a reduce function, 
+and writes data back out to persistent storage. 
+In Spark, the highest-level unit of computation is an application. 
+A Spark application can be used for a single batch job, an interactive session with multiple jobs, 
+or a long-lived server continually satisfying requests. 
+A Spark job can consist of more than just a single map and reduce.
+
+

@@ -32,3 +32,4 @@ or a long-lived server continually satisfying requests.
 A Spark job can consist of more than just a single map and reduce.
 
 
+https://www.cloudera.com/documentation/enterprise/5-6-x/topics/admin_spark_tuning1.html#spark_tuning__spark_tuning_shuffle

@@ -33,3 +33,33 @@ A Spark job can consist of more than just a single map and reduce.
 
 
 https://www.cloudera.com/documentation/enterprise/5-6-x/topics/admin_spark_tuning1.html#spark_tuning__spark_tuning_shuffle
+
+Job - A parallel computation consisting of multiple tasks that gets spawned in response to a Spark action (e.g. save, collect); 
+Jobs are decomposed into “stages” by separating where a shuffle is required. 
+The shuffle is essential to the “reduce” part of the parallel computation – it is the part that 
+is not fully parallel but where we must, in general, move data in order to complete the current phase of computation.
+
+So In this context, let's say you need to do the following:
+
+    1.Load a file with people names and addresses into RDD1
+    2.Load a file with people names and phones into RDD2
+    3.Join RDD1 and RDD2 by name, to get RDD3
+    4.Map on RDD3 to get a nice HTML presentation card for each person as RDD4
+    5.Save RDD4 to file.
+    6.Map RDD1 to extract zipcodes from the addresses to get RDD5
+    7.Aggregate on RDD5 to get a count of how many people live on each zipcode as RDD6
+    8.Collect RDD6 and prints these stats to the stdout.
+
+So,
+
+    1.The driver program is this entire piece of code, running all 8 steps.
+    2.Producing the entire HTML card set on step 5 is a job (clear because we are using the save action, not a transformation). 
+      Same with the collect on step 8
+    3.Other steps will be organized into stages, with each job being the result of a sequence of stages. 
+      For simple things a job can have a single stage, but the need to repartition data (for instance, the join on step 3) or 
+      anything that breaks the locality of the data usually causes more stages to appear. 
+      You can think of stages as computations that produce intermediate results, which can in fact be persisted. 
+      For instance, we can persist RDD1 since we'll be using it more than once, avoiding recomputation.
+    4.All 3 above basically talk about how the logic of a given algorithm will be broken. In contrast, a task is a particular piece of data that will go through a given stage, on a given executor.
+
+

@@ -506,3 +506,46 @@ Whenever you implement a reusable collection of behavior, you will have to decid
     Traits get compiled to interfaces and therefore may pay a slight performance overhead. 
     However, you should make this choice only if you know that the trait in question constitutes 
     a performance bottleneck and have evidence that using a class instead actually solves the problem.  
+
+                    -----------------------------------------------
+                      |   Interface   |  Base Class   |    Trait    |
+                      ===============================================
+> 1 per class         |      Yes      |       No      |     Yes     |
+---------------------------------------------------------------------
+Define Method Body    |      No       |       Yes     |     Yes     |
+---------------------------------------------------------------------
+Polymorphism          |      Yes      |       Yes     |     No      |
+---------------------------------------------------------------------'
+
+You should only use traits when multiple classes share the same functionality
+
+class BaseClass {
+    function SomeMethod() { /* Do stuff here */ }
+}
+
+interface IBase {
+    function SomeMethod();
+}
+
+trait myTrait {
+    function SomeMethod() { /* Do different stuff here */ }
+}
+
+class MyClass extends BaseClass implements IBase {
+    use myTrait;
+
+    function SomeMethod() { /* Do a third thing */ }
+}
+When creating an instance of MyClass, above, the following occurs:
+
+  1.  The Interface IBase requires a parameterless function called SomeMethod() to be provided.
+  2.  The base class BaseClass provides an implementation of this method - satisfying the need.
+  3. The trait myTrait provides a parameterless function called SomeMethod() as well, which takes precedence over the BaseClass-version
+  4.The class MyClass provides its own version of SomeMethod() - which takes precedence over the trait-version.
+
+
+Conclusion
+
+    An Interface can not provide a default implementation of a method body, while a trait can.
+    An Interface is a polymorphic, inherited construct - while a trait is not.
+    Multiple Interfaces can be used in the same class, and so can multiple traits.

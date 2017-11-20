@@ -482,3 +482,27 @@ If it represents an instance B that means it is Right.
 This is known as Either/Left/Right Design Pattern in Scala.
 
 
+Trait or not to Trait 
+----------------------
+
+Whenever you implement a reusable collection of behavior, you will have to decide whether you want to use a trait or an abstract class. There is no firm rule, but this section contains a few guidelines to consider.
+
+1. If the behavior will not be reused, then make it a concrete class. It is not reusable behavior after all.
+2. If it might be reused in multiple, unrelated classes, make it a trait. 
+    Only traits can be mixed into different parts of the class hierarchy.
+3.If you want to inherit from it in Java code, use an abstract class. 
+  Since traits with code do not have a close Java analog,it tends to be awkward to inherit from a trait in a Java class.
+  Inheriting from a Scala class, meanwhile, is exactly like inheriting from a Java class. 
+  As one exception, a Scala trait with only abstract members translates directly to a Java interface, 
+  so you should feel free to define such traits even if you expect Java code to inherit from it.
+4.If you plan to distribute it in compiled form, and you expect outside groups to write classes inheriting from it, 
+    you might lean towards using an abstract class. 
+    The issue is that when a trait gains or loses a member, any classes that inherit from it must be recompiled, 
+    even if they have not changed. 
+    If outside clients will only call into the behavior, instead of inheriting from it, then using a trait is fine.
+5.If efficiency is very important, lean towards using a class. 
+    Most Java runtimes make a virtual method invocation of a class member a faster operation than an interface method
+    invocation.
+    Traits get compiled to interfaces and therefore may pay a slight performance overhead. 
+    However, you should make this choice only if you know that the trait in question constitutes 
+    a performance bottleneck and have evidence that using a class instead actually solves the problem.  

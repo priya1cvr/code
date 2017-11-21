@@ -192,6 +192,20 @@ recursive methods have limited stack space
 
 	6. Tail Optimised Recursion 
 	   ========================
+What is tail recursion?
+A recursive function is tail recursive when recursive call is the last thing executed by the function.
+e.g 
+def printx(n:Int)
+{
+    if (n < 0)  return;
+    println(n)
+ 
+    // The last executed statement is recursive call
+    printx(n-1);
+}
+
+Why do we care?
+The tail recursive functions considered better than non tail recursive functions as tail-recursion can be optimized by compiler. The idea used by compilers to optimize tail-recursive functions is simple, since the recursive call is the last statement, there is nothing left to do in the current function, so saving the current function’s stack frame is of no use
 
 redesign factioral above 
 

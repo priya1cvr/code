@@ -345,6 +345,27 @@ If you change - extends C with B the o/p will be From B.display
 Why Scala does NOT have “static” keyword? What is the main reason for this decision?
 The main reason to take this decision is to make Scala as a Pure Object-Oriented Language. “static” keyword means that we can access that class members without creating an object or without using an object. This is completely against with OOP principles.
 
+// Java program to demonstrate that a static member
+// can be accessed before instantiating a class
+class Test
+{
+    // static method
+    static void m1()
+    {
+        System.out.println("from m1");
+    }
+ 
+    public static void main(String[] args)
+    {
+          // calling m1 without creating
+          // any object of class Test
+           m1();
+    }
+}
+
+Output:
+from m1
+
 
 How to define Factory methods using object keyword in Scala? What is the use of defining Factory methods in object?
 In Scala, we use ‘object’ keyword to define Factory methods. 

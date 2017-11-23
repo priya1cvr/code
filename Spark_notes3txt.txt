@@ -1,4 +1,4 @@
-
+https://umbertogriffo.gitbooks.io/apache-spark-best-practices-and-tuning/content/avoid_groupbykey_when_performing_an_associative_re/use-treereducetreeaggregate-instead-of-reduceaggregate.html
 
 ----key Value Pairs RDD-----
   ----GroupBy Key----
@@ -100,6 +100,29 @@ numbers.collect()
 # now use aggregateByKey with set constructor
 numbers.aggregateByKey(zero_value,seq_op,com_op).collect()		
 [('even', set([0, 2, 4])), ('odd', set([1, 5]))]
+
+
+
+scala> val babyNamesCSV = sc.parallelize(List(("David", 6), ("Abby", 4), ("David", 5), ("Abby", 5)))
+babyNamesCSV: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[0] at parallelize at <console>:12
+
+scala> babyNamesCSV.reduceByKey((n,c) => n + c).collect
+res0: Array[(String, Int)] = Array((Abby,9), (David,11))
+
+scala> babyNamesCSV.aggregateByKey(0)((k,v) => v.toInt+k, (v,k) => k+v).collect
+res1: Array[(String, Int)] = Array((Abby,9), (David,11))
+
+find the average of ages by Name 
+
+scala> babyNamesCSV.aggregateByKey((0, 0))(
+        (acc, value) => (acc._1 + value, acc._2 + 1),
+        (acc1, acc2) => (acc1._1 + acc2._1, acc1._2 + acc2._2)).mapValues(sumCount => 1.0 * sumCount._1 / sumCount._2).collect
+    
+res233: Array[(String, Double)] = Array((Abby,4.5), (David,5.5))
+
+scala> babyNamesCSV.map(x =>(x._1,(x._2,1))).reduceByKey((x,y)=> (x._1 + y._1,x._2 + y._2)).mapValues(sumCount => 1.0 * sumCount._1 / sumCount._2).collect()
+res228: Array[(String, Double)] = Array((Abby,4.5), (David,5.5))
+
 
 ----sortByKey-------
 allows to sorty key value pair by key 

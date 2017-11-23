@@ -587,5 +587,60 @@ The process of using broadcast variables is simple:
 2. Access its value with the value property (or value() method in Java).
 3. The variable will be sent to each node only once, and should be treated as read- only (updates will not be propagated to other nodes).
 
+Persist VS Cache 
+-----------------
+cache() will use MEMORY_ONLY. 
+If you want to use something else, use persist(StorageLevel.<*type*>)
+
+Just because you can cache a RDD in memory doesn’t mean you should blindly do so. 
+Depending on how many times the dataset is accessed and the amount of work involved in doing 
+so, recomputation can be faster than the price paid by the increased memory pressure.
+If you only read a dataset once there is no point in caching it, it will actually make your job slower.
+
+When you persist an RDD, each node stores any partitions of it that it computes in memory 
+and reuses them in other actions on that dataset (or datasets derived from it). 
+This allows future actions to be much faster (often by more than 10x). 
+Caching is a key tool for iterative algorithms and fast interactive use.
+
+Spark gives 5 types of Storage level
+
+    MEMORY_ONLY
+    MEMORY_ONLY_SER
+    MEMORY_AND_DISK
+    MEMORY_AND_DISK_SER
+    DISK_ONLY
+    
+MEMORY_ONLY
+Store RDD as deserialized Java objects in the JVM. 
+If the RDD does not fit in memory, some partitions will not be cached and will be 
+recomputed on the fly each time they're needed. This is the default level. 
+
+MEMORY_AND_DISK
+Store RDD as deserialized Java objects in the JVM. 
+If the RDD does not fit in memory, store the partitions that don't fit on disk, 
+and read them from there when they're needed. 
+
+MEMORY_ONLY_SER
+Store RDD as serialized Java objects (one byte array per partition). 
+This is generally more space-efficient than deserialized objects, especially when using a fast serializer, 
+but more CPU-intensive to read. 
+
+MEMORY_AND_DISK_SER
+Similar to MEMORY_ONLY_SER, but spill partitions that don't fit in memory to disk 
+instead of recomputing them on the fly each time they're needed.
+
+DISK_ONLY
+Store the RDD partitions only on disk.
+
+MEMORY_ONLY_2, MEMORY_AND_DISK_2, etc.
+Same as the levels above, but replicate each partition on two cluster nodes.
+
+Level                Space used  CPU time  In memory  On disk  Serialized
+-------------------------------------------------------------------------
+MEMORY_ONLY          High        Low       Y          N        N
+MEMORY_ONLY_SER      Low         High      Y          N        Y
+MEMORY_AND_DISK      High        Medium    Some       Some     Some
+MEMORY_AND_DISK_SER  Low         High      Some       Some     Y
+DISK_ONLY            Low         High      N          Y        Y
 
 

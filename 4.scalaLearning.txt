@@ -300,6 +300,40 @@ If you don't see a method name then its very likely the method that is getting c
   The method apply can be used in classes and objects 
   This is very important concept and used extensively in scala 
 
+import scala.util.Random
+object CustomerID {
+
+  def apply(name: String) = s"$name--${Random.nextLong}"
+
+  def unapply(customerID: String): Option[String] = {
+    val name = customerID.split("--").head
+    if (name.nonEmpty) Some(name) else None
+  }
+}
+
+val customer1ID = CustomerID("Sukyoung")  // Sukyoung--23098234908
+customer1ID match {
+  case CustomerID(name) => println(name)  // prints Sukyoung
+  case _ => println("Could not extract a CustomerID")
+}
+
+The apply method creates a CustomerID string from a name. 
+The unapply does the inverse to get the name back. 
+When we call CustomerID("Sukyoung"), this is shorthand syntax for calling CustomerID.apply("Sukyoung"). 
+When we call case CustomerID(name) => customer1ID, we’re calling the unapply method.
+
+The unapply method can also be used to assign a value.
+
+val customer2ID = CustomerID("Nico")
+val CustomerID(name) = customer2ID
+println(name)  // prints Nico
+
+The return type of an unapply should be chosen as follows:
+
+If it is just a test, return a Boolean. For instance case even()
+If it returns a single sub-value of type T, return an Option[T]
+If you want to return several sub-values T1,...,Tn, group them in an optional tuple Option[(T1,...,Tn)].
+
 
   2.  Infix Operators 
       ---------------

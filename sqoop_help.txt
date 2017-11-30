@@ -1,0 +1,167 @@
+g4t7491_[bishwal@g4t7491 hadoopPratice]$  hadoop jar wordcount.jar WordCount /user/bishwal/wc/input /user/bishwal/wc/output
+
+##################################################################################### 
+if you are not splitting the data then give -m 1 if you are splitting the data then give m value > 1 .Splitting means
+dividing the data on date etc ..
+
+sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://g9t3394.houston.hp.com:5433/shr2_vrt_itg  
+--username srvc_gbsa_pra_vitg --fields-terminated-by '^' --as-textfile --verbose --query 
+"select * from gbsa_pra_itg.pra_raw_stg where base_date>='04/06/2015' and \$CONDITIONS limit 100;"
+ --password 'password' --target-dir /GBSFinance/Srinivas/fetchedData; 
+ 
+##################################################################################### 
+ sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr3-vrt-dev.houston.hp.com:5433/shr3_vrt_dev  --username svs_gbsa_pra_vdev --fields-terminated-by ' ' --as-textfile --verbose --query "select * from gbsa_pra_dev.dim_roles WHERE 1=1 and \$CONDITIONS ;" --password 'Jul01!pr@pwd' --target-dir /GBSFinance/TestData/bishwal/dim_roles1; 
+OR 
+// but the below command throws error no such driver  
+ sqoop import \
+ -m 1 --driver com.vertica.jdbc.Driver  \ 
+ --connect jdbc:vertica://shr3-vrt-dev.houston.hp.com:5433/shr3_vrt_dev/ \
+ --username svs_gbsa_pra_vdev --fields-terminated-by '^' --as-textfile --verbose \
+ --query "select * from gbsa_pra_dev.dim_roles WHERE 1=1 and \$CONDITIONS ;" --password 'Jul01!pr@pwd'   \
+ --target-dir /GBSFinance/TestData/bishwal/dim_roles1 ; 
+
+ #####################################################################################
+ -- specifying with where condition 
+  sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr3-vrt-dev.houston.hp.com:5433/shr3_vrt_dev  --username svs_gbsa_pra_vdev --fields-terminated-by ' ' --as-textfile --verbose --query "select * from gbsa_pra_dev.dim_roles WHERE rolename ='Analyst' and \$CONDITIONS ;" --password 'Jul01!pr@pwd' --target-dir /GBSFinance/TestData/bishwal/dim_roles1; 
+ 
+ ######################################################################################
+ Create a password file as below i.e just append the password in the file pwd.txt 
+ this command creates pwd.txt 
+ 
+ #note -n deletes the new line so while storing the password ensure no new lines are added to the password file
+ g4t7491_[bishwal@g4t7491 sqoop]$ echo -n 'Jul01!pr@pwd' | hadoop fs -appendToFile - /GBSFinance/TestData/bishwal/sqoopPwd/pwd.txt
+ 
+  then use the sqoop command to read the pwd from the file rather than from command line by using --password-file
+  
+ sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr3-vrt-dev.houston.hp.com:5433/shr3_vrt_dev  --username svs_gbsa_pra_vdev  --fields-terminated-by ' ' --as-textfile --verbose --query "select * from gbsa_pra_dev.dim_roles WHERE rolename ='Analyst' and \$CONDITIONS ;" --password-file  /GBSFinance/TestData/bishwal/sqoopPwd/pwd.txt --target-dir /GBSFinance/TestData/bishwal/dim_roles1; 
+ 
+ ######################################################################################
+ 
+ # compressing  data 
+ use --compress 
+  sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr3-vrt-dev.houston.hp.com:5433/shr3_vrt_dev  --username svs_gbsa_pra_vdev  --fields-terminated-by ' ' --as-textfile --verbose --query "select * from gbsa_pra_dev.dim_users WHERE 1=1 and \$CONDITIONS ;" --password-file  /GBSFinance/TestData/bishwal/sqoopPwd/pwd.txt --target-dir /GBSFinance/TestData/bishwal/dim_users1 --compress; 
+
+  As Sqoop delegates compression to the MapReduce engine, you need to make sure the compressed map output is allowed in your 
+  Hadoop configuration. For example, if in the mapred-site.xml file, the property mapred.output.compress is set to false 
+  with the final flag, then Sqoop won’t be able to compress the output files even when you call it
+  with the --compress parameter.
+  
+  ######################################################################################
+  
+  Speeding Up Transfers
+  --direct at the end will help but note not all parameters are supported. As the native utilities usually produce text 
+  output, binary formats like SequenceFile or Avro won’t work. Also, parameters that customize the escape characters, 
+  type mapping, column and row delimiters, or the NULL substitution string might not be supported in all cases.
+ 
+  ######################################################################################
+   #Overriding Type Mapping
+   
+   Sqoop’s ability to override default type mapping using the parameter --mapcolumn-java. 
+   For example, to override the type of column roleid to Java type Long:
+   
+   Note : while mentioning the column name make sure the case sensitiveness, roleid and RoleID are different for sqoop
+   
+   sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr3-vrt-dev.houston.hp.com:5433/shr3_vrt_dev  --username svs_gbsa_pra_vdev  --fields-terminated-by '\001' --as-textfile --verbose --query "select * from gbsa_pra_dev.dim_roles WHERE 1=1 and \$CONDITIONS ;" --password-file  /GBSFinance/TestData/bishwal/sqoopPwd/pwd.txt --target-dir /GBSFinance/TestData/bishwal/dim_roles1 --map-column-java RoleID=Long; 
+	
+	ps.note : while exporting data from vertica make sure the delimiter should be same as hive delimited table definition .
+	
+	CREATE TABLE Dim_Roles
+	(
+		RoleID INT   ,
+		RoleName STRING  ,
+		IsActive BOOLEAN    ,
+		CreatedBy STRING,
+		CreatedOn STRING,
+		UpdatedBy STRING,
+		UpdatedOn STRING,
+		IsDeleted BOOLEAN    
+	)
+	ROW FORMAT DELIMITED
+	FIELDS TERMINATED BY '\001'
+	LINES TERMINATED BY '\n'
+	STORED AS TEXTFILE;
+	
+	LOAD DATA  INPATH  '/GBSFinance/TestData/bishwal/dim_roles1/part-m-00000' INTO TABLE dim_roles;
+	
+   ######################################################################################
+	#controlling the number of parallelism 
+	
+   sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr6-vrt-pro.houston.hp.com:5433/shr6_vrt_pro  --username srvc_gbsa_pra_vprd  --fields-terminated-by '\001' --as-textfile --verbose --query "select * from gbsa_pra_prod.pra_fact_duplicates  WHERE 1=1 and \$CONDITIONS ;" --password  'Nov18!dp0pwdp' --target-dir /GBSFinance/TestData/bishwal/fact_dup --num-mappers 10;
+   
+   LOAD DATA  INPATH  '/GBSFinance/TestData/bishwal/fact_dup/part-m-00000' INTO TABLE pra_fact_duplicates;
+   ######################################################################################
+ 
+	#override null values 
+	
+	sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr6-vrt-pro.houston.hp.com:5433/shr6_vrt_pro  --username srvc_gbsa_pra_vprd  --fields-terminated-by '\001' --as-textfile --verbose --query "select * from gbsa_pra_prod.pra_fact_duplicates  WHERE 1=1 and \$CONDITIONS ;" --password  'Nov18!dp0pwdp' --target-dir /GBSFinance/TestData/bishwal/fact_dup1 --null-string '\\N' --null-non-string '\\N'  --num-mappers 10;
+	
+   ######################################################################################
+	#Loading Data for Single Date and for few columns 
+	
+	if you are not splitting the data then give -m 1 if you are splitting the data then give m value > 1 .Splitting means
+	dividing the data on date etc ..
+
+  sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr6-vrt-pro.houston.hp.com:5433/shr6_vrt_pro  --username srvc_gbsa_pra_vprd  --fields-terminated-by '\001' --as-textfile --verbose --query "select id,rank,criteria_type,amount_dc,amount_us,amount_lc,updated_date from gbsa_pra_prod.pra_fact_duplicates  WHERE cast(updated_date as date)='2016-06-20' and \$CONDITIONS ;" --password  'Nov18!dp0pwdp' --target-dir /GBSFinance/TestData/bishwal/fact_dup1 --null-string '\\N' --null-non-string '\\N'  --num-mappers 10;
+	
+	######################################################################################
+
+	#Importing Only New Data 
+	
+	 append mode :When your table is only getting new rows and the existing ones are not changed
+	
+	Incremental import also requires two additional parameters: 
+	--check-column indicates a column name that should be checked for newly appended data
+	--last-value contains the last value that successfully imported into Hadoop
+	
+	The following example will transfer only those rows whose value in column updated_date is greater '2016-06-20' (from previous command)
+	
+	sqoop import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr6-vrt-pro.houston.hp.com:5433/shr6_vrt_pro  --username srvc_gbsa_pra_vprd  --fields-terminated-by '\001' --as-textfile --verbose --query "select id,rank,criteria_type,amount_dc,amount_us,amount_lc,updated_date from gbsa_pra_prod.pra_fact_duplicates  WHERE  \$CONDITIONS" --password  'Nov18!dp0pwdp' --target-dir /GBSFinance/TestData/bishwal/fact_dup1 --null-string '\\N' --null-non-string '\\N'  \
+	--incremental append --check-column updated_date --last-value '2016-06-20 16:09:36' --num-mappers 10;
+	 
+	 p.s note : don't give space after $CONDITIONS in the above query else it gives syntax error ,
+     Wrong :  WHERE  \$CONDITIONS  " ( no space should be here )	
+	 Correct:  WHERE  \$CONDITIONS"
+	
+	######################################################################################
+	 #Incrementally Importing Mutable Data
+	 
+	 Use the lastmodified mode instead of the append mode. For example, use the following
+	 command to transfer rows whose value in column  updated_date is greater than 2013-05-22 01:01:01:
+		
+		--incremental lastmodified --check-column last_update_date --last-value "2013-05-22 01:01:01"
+	The incremental mode lastmodified requires a column holding a date value (suitable
+    types are date, time, datetime, and timestamp) containing information as to when each row was last updated
+   ######################################################################################
+	#Preserving the Last Imported Value
+     -the responsibility for remembering the last imported value is getting to be a hassle.Sqoop metastore that allows you to
+		save all parameters for later reuse
+   
+   sqoop job --create fact_duplicate -- import -m 1 --driver com.vertica.jdbc.Driver --connect jdbc:vertica://shr6-vrt-pro.houston.hp.com:5433/shr6_vrt_pro  --username srvc_gbsa_pra_vprd  --fields-terminated-by '\001' --as-textfile --verbose --query "select id,rank,criteria_type,amount_dc,amount_us,amount_lc,updated_date from gbsa_pra_prod.pra_fact_duplicates  WHERE  \$CONDITIONS" --password  'Nov18!dp0pwdp' --target-dir /GBSFinance/TestData/bishwal/fact_dup1 --null-string '\\N' --null-non-string '\\N'  \
+   --incremental append --check-column updated_date --last-value '2016-06-20 16:09:36' --num-mappers 10;
+
+   p.s note : while creating a sqoop job note that before import command there should be space between -- and import
+   
+   to see the list of available jobs:
+	g4t7491_[bishwal@g4t7491 ~]$ sqoop job --list
+	16/08/05 09:52:07 INFO sqoop.Sqoop: Running Sqoop version: 1.4.6-mapr-1601
+	Available jobs:
+	  fact_duplicate
+
+	 inspect the configuration of a job with the show action:
+	 g4t7491_[bishwal@g4t7491 ~]$ sqoop job --show fact_duplicate
+	 -- this will give a long list of jobs 
+	 
+	 --to run the job 
+	g4t7491_[bishwal@g4t7491 ~]$ sqoop job --exec fact_duplicate
+	p.s note it will ask for password ,so its not ur machine login password rather Database password i.e Nov18!dp0pwdp
+	
+    --to remove job definition
+	sqoop job --delete fact_duplicate
+	
+	######################################################################################
+	#Overriding the Arguments to a Saved Job
+	You can add or override any parameters of the saved job when executing it. All you need to do is add an 
+	extra -- after the --exec command, followed by any additional parameter you would like to add.
+	
+	g4t7491_[bishwal@g4t7491 ~]$ sqoop job --exec fact_duplicate -- --verbose
+

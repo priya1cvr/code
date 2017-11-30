@@ -1,0 +1,26 @@
+how to change the data type of imported hive table ?
+Sqoop is preconfigured to map most SQL types to appropriate Java or Hive representatives. However the default mapping might not be suitable for everyone and might be overridden by --map-column-java (for changing mapping to Java) or --map-column-hive (for changing Hive mapping).
+
+Here we can do a simple example of that.
+
+Import the countries table from mysql to hive ?
+
+Check the columns and data type of table countries in mysql.
+
+mysql -u training -e "describe training.countries" -p
+
+Clear the hdfs and hive
+hive -e "drop table if exists countries"
+hadoop fs -rmr /user/training/countries
+
+Import the countries table to hive and check the data type of imported table
+sqoop import --connect jdbc:mysql://localhost/training --username training -P --table countries --hive-import -m 1
+hive -e "describe countries"
+
+Clear the hdfs and hive
+hive -e "drop table if exists countries"
+hadoop fs -rmr /user/training/countries
+
+Import the mysql table again by specifying the id column with string data type
+sqoop import --connect jdbc:mysql://localhost/training --username training -P --table countries --hive-import -m 1 --map-column-hive id=string
+hive -e "describe countries"

@@ -1,0 +1,251 @@
+Loading data in mySql
+----------------------
+MySQL server has been started with --secure-file-priv option which basically limits from which directories you can load files using LOAD DATA INFILE.
+
+You may use SHOW VARIABLES LIKE "secure_file_priv"; to see the directory that has been configured.
+
+login to mysql using below :else u will get error :ERROR 1148 (42000): The used command is not allowed with this MySQL version
+ mysql -h localhost -u hiveuser -p  --local-infile itest_user
+--local-infile => for the database you want to insert.
+
+note sequence of csv file and create table must be same 
+
+CREATE TABLE  zipcode 
+(
+ zip varchar(20),
+ city VARCHAR(50), 
+ state VARCHAR(100),
+ latitude DECIMAL(15,5), 
+ longitude DECIMAL (15,5), 
+ timezone int ,
+ destination VARCHAR(100),
+ PRIMARY KEY (zip)
+);
+
+
+LOCAL Keyword is specified becoz of error :MySQL server is running with the --secure-file-priv option so it cannot execute   
+The error goes off when you login as said above 
+
+LOAD DATA LOCAL INFILE '/Users/pbishwal/Documents/Techie/SparknScala/SparkCodes/BuildingSparkApplication_orielly/zipcode.csv' INTO TABLE itest_user.zipcode
+FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+IGNORE 1 LINES;
+--LINES TERMINATED BY '\r\n'
+
+
+-----------------
+
+before runnng sqoop make sure the driver is present in lib as below:
+cp /usr/local/Cellar/hive/2.1.0/libexec/lib/mysql-connector-java-5.1.41-bin.jar /usr/local/Cellar/sqoop/1.4.6/libexec/lib
+
+Use the --bindir option and point to your current working directory.
+my cwd is :/usr/local/etc/zipcode
+
+sqoop import --bindir ./ --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --m 1 
+
+so it will create below files in the same local directory where you have specified this command 
+rw-r--r--  1 pbishwal  wheel  21606 Jul 16 01:25 zipcode.java
+-rw-r--r--  1 pbishwal  admin   5161 Jul 16 01:25 zipcode.jar
+-rw-r--r--  1 pbishwal  admin  13538 Jul 16 01:25 zipcode.class
+drwxr-xr-x  6 pbishwal  admin    204 Jul 16 01:25 zipcode  ====> folder where you can see part-m-000000
+
+#i have removed after using testing it  
+
+specifying bindir will generate the tablename.java ,tablename.jar, tablename.class in the same path where you are running else it will give classNotFoundException 
+
+In the above error it say its not able to find the class file for zipcode (which is my input table) inside sqoop once you run the import command it generates the .class file to be used for import process since these files get stored in/tmp/sqoop-<username>/compile n we will have to point it to be stored in the local library so that sqoop can find it once its ready to be used during the import process.
+
+We will need to use –bindir ./ on the sqoop command like below which resolved this issue
+
+
+
+# the below command will import the table to the hdfs direcory specified 
+this code is run from : /tmp/sqoop-pbishwal
+sqoop import  --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --m 1 \
+ --delete-target-dir --target-dir  /tmp/hive/sqoop --bindir .
+
+you can check in the target hdfs directory 
+Priyabrats-MacBook-Air:tmp pbishwal$ hadoop fs -ls /tmp/hive/sqoop
+17/07/16 12:23:47 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Found 2 items
+-rw-r--r--   1 pbishwal supergroup          0 2017-07-16 12:21 /tmp/hive/sqoop/_SUCCESS
+-rw-r--r--   1 pbishwal supergroup    1848067 2017-07-16 12:21 /tmp/hive/sqoop/part-m-00000
+
+
+p.s Note:
+if you want to run it from any other directory you have to specify the --driver option
+for that the .classname should be generated first 
+1.sqoop codegen --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode
+2.Look for the line in the output: Writing jar file:  /tmp/sqoop-pbishwal/compile/2a4b30580aff22ddc42917979f7c6598/zipcode.jar
+3.Use the above class in your import commmand:  
+here go to the location where .class file is generated i.e /tmp/sqoop-pbishwal/compile/2a4b30580aff22ddc42917979f7c6598/
+sqoop import --driver zipcode --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --m 1 \
+ --delete-target-dir --target-dir  /tmp/hive/sqoop  
+
+Now hadoop fs will show the files 
+Priyabrats-MacBook-Air:~ pbishwal$ hadoop fs -ls /tmp/hive/sqoop
+17/07/16 13:10:04 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Found 2 items
+-rw-r--r--   1 pbishwal supergroup          0 2017-07-16 13:09 /tmp/hive/sqoop/_SUCCESS
+-rw-r--r--   1 pbishwal supergroup    1848067 2017-07-16 13:09 /tmp/hive/sqoop/part-m-00000
+Priyabrats-MacBook-Air:~ pbishwal$ 
+
+com.mysql.jdbc.Driver
+
+===========================
+Copy data into an Hive warehouse you will need your MySql table with primary Key Defined and then use the command 
+
+-this copy was done as i have upgraded to hive 2.1.1 and as hive-site.xml was not present in /usr/local/Cellar/hive/2.1.1/libexec/conf i was getting Unable to instantiate org.apache.hadoop.hive.ql.metadata.SessionHiveMetaStoreClient
+
+cp /usr/local/Cellar/hive/2.1.0/libexec/lib/mysql-connector-java-5.1.41-bin.jar  /usr/local/Cellar/hive/2.1.1/libexec/lib/mysql-connector-java-5.1.41-bin.jar
+
+cp /usr/local/Cellar/hive/2.1.0/libexec/conf/hive-site.xml  /usr/local/Cellar/hive/2.1.1/libexec/conf/hive-site.xml
+cp /usr/local/Cellar/hive/2.1.0/libexec/conf/hive-env.sh /usr/local/Cellar/hive/2.1.1/libexec/conf/hive-env.sh
+
+=================================
+--bindir ./ 
+sqoop import --driver zipcode --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode –-hive-import -- --schema –-hive-database itest –-create-hive-table zipcode –-split-by zip 
+
+if you don’t have the MySql table with Primary key can use the below command to do the hive table  
+--check below is not working 
+sqoop import --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode –-hive-import \  –-create-hive-table --hive-table itest.zipcode --target-dir /tmp/hive/sqoop/zipcode
+
+above 2 not working 
+
+=================================
+ cp /usr/local/Cellar/hadoop/2.7.3/libexec/libexec/* /usr/local/Cellar/hadoop/2.7.3/libexec/
+/usr/local/Cellar/hive/2.1.1/libexec/hcatalog/bin
+
+ cp /usr/local/Cellar/hadoop/2.8.0/libexec/libexec/* /usr/local/Cellar/hadoop/2.8.0/libexec/
+
+Also you have to include the below exports 
+export HIVE_HOME=/usr/local/Cellar/hive/2.1.1/libexec
+export HCAT_HOME=${HIVE_HOME}/hcatalog
+export HIVE_CONF_DIR=$HIVE_HOME/conf
+
+export HCATJAR=$HCAT_HOME/share/hcatalog/hive-hcatalog-core-2.1.1.jar
+export HCATPIGJAR=$HCAT_HOME/share/hcatalog/hive-hcatalog-pig-adapter-2.1.1.jar
+export HIVE_VERSION=2.1.1
+export HADOOP_CLASSPATH=$HCATJAR:$HCATPIGJAR:$HIVE_HOME/lib/hive-exec-$HIVE_VERSION.jar:$HIVE_HOME/lib/hive-metastore-$HIVE_VERSION.jar:$HIVE_HOME/lib/libfb303-0.9.3.jar:$HIVE_HOME/lib/libthrift-0.9.3.jar:$HIVE_HOME/conf:/etc/hadoop/conf
+export LIBJARS=`echo $HADOOP_CLASSPATH | sed -e 's/:/,/g'`
+export LIBJARS=$LIBJARS,$HIVE_HOME/lib/antlr-runtime-3.4.jar
+
+remember you have to refresh bashrc i.e = . ~/.bashrc
+
+A symbolic link is created as below : in /usr/local/Cellar/sqoop/1.4.6/libexec/lib
+ln -s  /usr/local/Cellar/hive/2.1.1/libexec/lib/hive-exec-2.1.0.jar hive-exec-2.1.1.jar
+ln -s  /usr/local/Cellar/hive/2.1.0/libexec/lib/hive-exec-2.1.0.jar hive-exec-2.1.0.jar
+else you will get the HIVE_CONF_DIR not set error
+ 
+1st we generate the zipcode class by running from /tmp/sqoop-pbishwal/
+sqoop import --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --hcatalog-database itest --hcatalog-table zipcode_orc --create-hcatalog-table --hcatalog-storage-stanza "stored as orcfile"  
+
+
+--2nd werun after the zipcode class file is generated from the path below , here we specify the --driver <.class> i.e zipcode without .class 
+
+cd /tmp/sqoop-pbishwal/compile/ed0c5b57fb6e679425ee5dc7ce20ba67
+sqoop import --driver zipcode --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --hcatalog-database itest --hcatalog-table zipcode_orc1 --create-hcatalog-table --hcatalog-storage-stanza "stored as orcfile"
+
+remember you have to refresh bashrc i.e = . ~/.bashrc
+ Approach 2: 
+ you can directly run using the bindir command as it will include the class files from that path:
+
+sqoop import --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --hcatalog-database itest --hcatalog-table zipcode_orc --create-hcatalog-table --hcatalog-storage-stanza "stored as orcfile" --bindir ./  
+
+sqoop import --driver zipcode --connect jdbc:mysql://localhost/itest_user --username hiveuser --password welcome1 --table zipcode --hcatalog-database itest --hcatalog-table zipcode_orc --create-hcatalog-table --hcatalog-storage-stanza "stored as orcfile"  
+
+remember you have to refresh bashrc i.e = . ~/.bashrc else you get below error 
+Exception in thread "main" java.lang.NoClassDefFoundError: org/apache/hive/hcatalog/mapreduce/HCatOutputFormat
+
+
+=================================================================================================================
+
+Error: Could not find or load main class org.apache.sqoop.Sqoop-
+this error is due to the fact that it is looking for /bin/hadoop file in hdfs which is present in below path .so set these 2 variables in sqoop-env.sh where your sqoop is installed (/usr/local/Cellar/sqoop/1.4.6/conf - when installed through homebrew 
+and /Users/pbishwal/sqoop-1.4.6.bin__hadoop-2.0.4-alpha/conf )
+
+export HADOOP_COMMON_HOME=$HADOOP_HOME/libexec
+export HADOOP_MAPRED_HOME=$HADOOP_HOME/libexec
+
+=================================================================================================================
+Problem Statement
+There are about 35,000 crime incidents that happened in the city of San Francisco in the last 3 months.
+
+Our task is to store this relational data in an RDBMS. Use Sqoop to import it into Hadoop.
+
+add jar /Users/pbishwal/Downloads/csv-serde-master/src/main/java/com/bizo/hive/serde/csv/csv-serde.jar ;
+Added [/Users/pbishwal/Downloads/csv-serde-master/src/main/java/com/bizo/hive/serde/csv/csv-serde.jar] to class path
+Added resources: [/Users/pbishwal/Downloads/csv-serde-master/src/main/java/com/bizo/hive/serde/csv/csv-serde.jar]
+
+
+CREATE TABLE  itest.IncidentJson (IncidntNum int, 
+                            Category string, 
+                            Descript string, 
+                            DayOfWeek string, 
+                            dDate string, 
+                            Ttime string, 
+                            PdDistrict string, 
+                            Resolution string,
+                            Address string, 
+                            x string, 
+                            y string, 
+                            LLocation string, 
+                            PdId string) 
+ROW FORMAT SERDE 'com.bizo.hive.serde.csv.CSVSerde' WITH SERDEPROPERTIES("separatorChar" = "\,","quoteChar" = "\"");
+
+LOAD  DATA LOCAL INPATH '/Users/pbishwal/Downloads/Police_Department_Incidents.csv' INTO TABLE itest.IncidentJson;
+  
+  INSERT OVERWRITE DIRECTORY '/user/hive/iTest/incidentjson_x' SELECT printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", IncidntNum, Category, Descript, DayOfWeek, dDate, Ttime, PdDistrict, Resolution, Address, x, y, LLocation, PdId) 
+FROM itest.IncidentJson;
+
+ P.S Note: here in printf the fields are terminated by , if it is tab delimied then it takes up space and gives number format exception
+
+ sample record 
+IncidntNum	Category	Descript	DayOfWeek	Date	Time	PdDistrict	Resolution	Address	X	Y	Location	PdId
+150060275	NON-CRIMINAL	LOST PROPERTY	Monday	01/19/2015	14:00	MISSION	NONE	18TH ST / VALENCIA ST	-122.42158168137	37.7617007179518	(37.7617007179518, -122.42158168137)	15006027571000
+
+
+--create table in mysql 
+CREATE TABLE  itest_user.crime_incidents (IncidntNum Bigint, 
+                            Category varchar(100), 
+                            Descript varchar(100), 
+                            DayOfWeek varchar(100), 
+                            dDate varchar(100), 
+                            Ttime varchar(100), 
+                            PdDistrict varchar(100), 
+                            Resolution varchar(100),
+                            Address varchar(100), 
+                            x varchar(100), 
+                            y varchar(100), 
+                            LLocation varchar(100), 
+                            PdId varchar(100)) 
+
+Now exporting the data into RDBMS using Sqoop,
+step 1 -create class file 
+sqoop export --bindir ./ --connect jdbc:mysql://localhost/itest_user --table crime_incidents --username hiveuser --password welcome1 --export-dir /user/hive/iTest/incidentjson_x --fields-terminated-by ,
+
+# note : this step will give error Got exception running Sqoop: java.lang.NullPointerException as it didnt fine the .class file becaue
+step 1 generates it .so in step 2 we specify the --drive (classfile without .class)
+
+step 2 - use the class file in --driver tablename(.class is ommited in driver) 
+
+sqoop export --driver crime_incidents --connect jdbc:mysql://localhost/itest_user --table crime_incidents --username hiveuser --password welcome1 --export-dir /user/hive/iTest/incidentjson_x --fields-terminated-by ,
+
+mysql> select count(*) from itest_user.crime_incidents ;
++----------+
+| count(*) |
++----------+
+|  4940042 |
++----------+
+
+Note : date is varchar inserted so we can format in select statement as needed 
+mysql> select STR_TO_DATE(dDate, '%d/%m/%Y') from itest_user.crime_incidents limit 2;
++--------------------------------+
+| STR_TO_DATE(dDate, '%d/%m/%Y') |
++--------------------------------+
+| NULL                           |                        
+| 2015-01-02                     |
++--------------------------------+
+
+=============================
+
+

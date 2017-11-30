@@ -1,0 +1,19 @@
+####################################################
+#
+# Options file for Sqoop import
+#
+
+# Specifies the tool being invoked
+import
+
+# Connect parameter and value
+--connect
+jdbc:mysql://localhost/training
+
+# Username parameter and value
+--username
+training
+-P
+#
+# Remaining options should be specified in the command line.
+#

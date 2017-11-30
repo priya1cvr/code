@@ -1,0 +1,3 @@
+Create an empty hive table corresponding to the schema of countries table in mysql ? Dont import the data ?
+
+sqoop create-hive-table --connect jdbc:mysql://localhost/training --username training -P --table countries --hive-table countriesnew

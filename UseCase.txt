@@ -1,0 +1,3 @@
+How to pass sqoop options through a config file. This will help us to avoid repetative usage of same configs with all the scripts .?
+
+sqoop --options-file /home/training/options.txt --table countries --target-dir test1

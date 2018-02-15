@@ -1,0 +1,48 @@
+implicit def doubleToInt(d: Double) = d.toInt
+val x: Int = 42.0
+will work the same as
+
+def doubleToInt(d: Double) = d.toInt
+val x: Int = doubleToInt(42.0)
+In the second we've inserted the conversion manually; in the first the compiler did the same automatically. The conversion is required because of the type annotation on the left hand side.
+
+https://alvinalexander.com/scala/concurrency-with-scala-futures-tutorials-examples
+
+Futures provide a way to reason about performing many operations in parallel– in an efficient and non-blocking way. 
+A Future is a placeholder object for a value that may not yet exist. 
+Generally, the value of the Future is supplied concurrently and can subsequently be used. 
+Composing concurrent tasks in this way tends to result in faster, asynchronous, non-blocking parallel code.
+
+A future and ExecutionContext
+=============================
+The following statements describe the basic concepts of a future, and the ExecutionContext that a future relies on.
+
+1. A Future[T] is a container that runs a computation concurrently, and at some future time may return either 
+	(a) a result of type T or (b) an exception.
+2. Computation of your algorithm starts at some nondeterministic time after the future is created, 
+	running on a thread assigned to it by the execution context.
+3. The result of the computation becomes available once the future completes.
+4. When it returns a result, a future is said to be completed. It may either be successfully completed, or failed.
+5. A future provides an interface for reading the value that has been computed. 
+	This includes callback methods and other approaches, such as a for-comprehension, map, flatMap, etc.
+6. An ExecutionContext executes a task it’s given. You can think of it as being like a thread pool.
+7. The ExecutionContext.Implicits.global import statement shown in the examples imports the default global execution context.
+
+Callback methods
+=================
+The following statements describe the use of the callback methods that can be used with futures.
+1.Callback methods are called asynchronously when a future completes.
+2.The callback methods onComplete, onSuccess, onFailure
+3.A callback method is executed by some thread, some time after the future is completed. From the Scala Futures documentation, 
+	“There is no guarantee that it will be called by the thread that completed the future or the thread that created the callback.”	
+4.The order in which callbacks are executed is not guaranteed.
+5.onComplete takes a callback function of type Try[T] => U.
+6.onSuccess and onFailure take partial functions. You only need to handle the desired case
+7.onComplete, onSuccess, and onFailure have the result type Unit, so they can’t be chained. 
+	This design was intentional, to avoid any suggestion that callbacks may be executed in a particular order.
+	
+The recover, recoverWith, and fallbackTo combinators provide ways of handling failure with futures. 
+If the future they’re applied to returns successfully, you get that (desired) result, 
+but if it fails, these methods do what their names suggest, giving you a way to recover from the failure.
+
+	

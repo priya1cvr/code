@@ -1,0 +1,207 @@
+1.Which of the following statements are true? (Check all that apply)
+
+Linear classifiers are never useful, because they cannot represent XOR.  
+Linear classifiers are useful, because, with enough data, they can represent anything.
+Having good non-linear features can allow us to learn very accurate linear classifiers.  c
+none of the above
+
+2.
+A simple linear classifier can represent which of the following functions? (Check all that apply)
+Hint: If you are stuck, see https://www.coursera.org/learn/ml-foundations/module/nqC1t/discussions/AAIUurrtEeWGphLhfbPAyQ
+
+
+x1 OR x2 OR NOT x3 c
+x1 AND x2 AND NOT x3 c
+x1 OR (x2 AND NOT x3) c
+none of the above 
+
+4.Which of the following statements is true? (Check all that apply)
+
+Features in computer vision act like local detectors. 
+Deep learning has had impact in computer vision, because it’s used to combine all the different hand-created features that already exist.  c
+By learning non-linear features, neural networks have allowed us to automatically learn detectors for computer vision.  
+none of the above
+
+5.If you have lots of images of different types of plankton labeled with their species name, and lots of computational resources, what would you expect to perform better predictions:
+
+a deep neural network trained on this data. c 
+a simple classifier trained on this data, using deep features as input, which were trained using ImageNet data.
+
+6.If you have a few images of different types of plankton labeled with their species name, what would you expect to perform better predictions:
+a deep neural network trained on this data. c 
+a simple classifier trained on this data, using deep features as input, which were trained using ImageNet data. c 
+
+=========================================================
+
+Assignment Learning 
+
+import graphlab
+
+#Load a common image analysis dataset
+image_train=graphlab.SFrame('image_train_data/')
+image_test=graphlab.SFrame('image_test_data/')
+
+#Exploring the image data
+graphlab.canvas.set_target('ipynb')
+
+image_train['image'].show()
+
+# shows images 
+
+#Train a classifier on the raw image pixels
+raw_pixel_model = graphlab.logistic_classifier.create(image_train,target='label',features=['image_array'])
+
+Number of examples          : 1909
+Number of classes           : 4
+Number of feature columns   : 1
+Number of unpacked features : 3072
+Number of coefficients    : 9219
+Starting L-BFGS
+--------------------------------------------------------
++-----------+----------+-----------+--------------+-------------------+---------------------+
+| Iteration | Passes   | Step size | Elapsed Time | Training-accuracy | Validation-accuracy |
++-----------+----------+-----------+--------------+-------------------+---------------------+
+| 1         | 6        | 0.000007  | 4.578239     | 0.267156          | 0.208333            |
+.....
+
+
+#Make a prediction with the simple model based on raw pixels 
+image_test[0:3]['image'].show()
+
+image_test[0:3]['label']
+
+dtype: str
+Rows: 3
+['cat', 'automobile', 'cat']
+
+
+
+raw_pixel_model.predict(image_test[0:3])
+dtype: str
+Rows: 3
+['automobile', 'cat', 'automobile']
+
+#raw_pixel_model - gives all wrong 
+
+#Evaluating raw pixel model on test data
+raw_pixel_model.evaluate(image_test)
+
+{'accuracy': 0.392, 'auc': 0.703715583333333, 'confusion_matrix': Columns:
+ 	target_label	str
+ 	predicted_label	str
+ 	count	int
+ 
+ Rows: 16
+
+ # see here accuracy is just 39 %
+
+ #can we improve the model using deep features
+len(image_train)
+2005
+
+deep_learning_model = graphlab.load_model('imagenet_model')
+image_train['deep_features'] =deep_learning_model.extract_features(image_train)
+
+image_train.head()
+
+# Given the deep features, lets train a classifier
+deep_features_model = graphlab.logistic_classifier.create(image_train,features=['deep_features'],target='label')
+
+
+Number of examples          : 1915
+Number of classes           : 4
+Number of feature columns   : 1
+Number of unpacked features : 4096
+...
+
+# apply the deep features model model to first few images of test set
+image_test[0:3]['image'].show()
+
+deep_features_model.predict(image_test[0:3])
+dtype: str
+Rows: 3
+['cat', 'automobile', 'cat']
+
+
+#compute test_data accuracy of deep_features_model
+deep_features_model.evaluate(image_test)
+'accuracy': 0.78525, 'auc': 0.9395542083333336, 'confusion_matrix': Columns:
+ 	target_label	str
+ 	predicted_label	str
+ 	count	int
+
+# note accuracy is 78%
+
+DeepFeaturesFr Image Retrieval
+=============================
+
+import graphlab
+
+#load the CIFAR 10 dataset
+image_train = graphlab.SFrame('image_train_data/')
+
+image_train.head() 	
+id	image	label	deep_features	image_array
+24	Height: 32 Width: 32	bird	[0.242871761322,
+1.09545373917, 0.0, ...	[73.0, 77.0, 58.0, 71.0,
+68.0, 50.0, 77.0, 69.0, ...
+33	Height: 32 Width: 32	cat	[0.525087952614, 0.0,
+0.0, 0.0, 0.0, 0.0, ...	[7.0, 5.0, 8.0, 7.0, 5.0,
+8.0, 5.0, 4.0, 6.0, 7.0, ...
+
+
+#Train a nearest neighbors model for retrieving images using deep features 
+knn_model = graphlab.nearest_neighbors.create(image_train,features=['deep_features'],label='id')
+
+
+#Use image retrieval model with deep features to find similar images
+graphlab.canvas.set_target('ipynb')
+cat = image_train[18:19]
+cat['image'].show()   
+
+knn_model.query(cat)
+
+query_label	reference_label	distance	rank
+0	384	0.0	1
+0	6910	36.9403137951	2
+...
+
+
+def get_images_ids(query_result):
+    return image_train.filter_by(query_result['reference_label'],'id')
+
+
+cat_neighbors = get_images_ids(knn_model.query(cat))
+
+Query points | # Pairs | % Complete. | Elapsed Time |
++--------------+---------+-------------+--------------+
+| 0            | 1       | 0.0498753   | 35.492ms     |
+| Done         |         | 100         | 387.363ms    |
++--------------+---------+-------------+--------------+
+
+cat_neighbors['image'].show()
+
+car = image_train[8:9]
+car['image'].show()
+
+get_images_ids(knn_model.query(car))['image'].show()
+
+Query points | # Pairs | % Complete. | Elapsed Time |
++--------------+---------+-------------+--------------+
+| 0            | 1       | 0.0498753   | 19.735ms     |
+| Done         |         | 100         | 407.19ms     |
+
+
+# Just fr fun ,lets create a lambda to find and show nearest neighbor images 
+show_neighbors = lambda i: get_images_ids(knn_model.query(image_train[i:i+1]))['image'].show()
+
+
+show_neighbors(8)
+
+Query points | # Pairs | % Complete. | Elapsed Time |
++--------------+---------+-------------+--------------+
+| 0            | 1       | 0.0498753   | 15.451ms     |
+| Done         |         | 100         | 367.901ms    |
+
+    
+

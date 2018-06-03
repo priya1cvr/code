@@ -1,0 +1,182 @@
+predicting house prices 
+course 1 - week 2 
+==================
+
+import graphlab
+import graphlab
+
+graphlab.product_key.set_product_key('F07A-4F60-3062-8B27-9193-34F9-42C8-64BA')
+graphlab.set_runtime_config('GRAPHLAB_DEFAULT_NUM_PYLAMBDA_WORKERS', 4)
+graphlab.product_key.get_product_key()
+
+sales = graphlab.SFrame('home_data.gl/')
+sales
+
+graphlab.canvas.set_target('ipynb')
+sales.show(view="Scatter Plot",x="sqft_living" ,y="price")
+
+
+train_data,test_data = sales.random_split(.8,seed=2014)
+# split 80% data to train data and seed is given so data same numbers turn up 
+
+# Build the regression model
+sqft_model = graphlab.linear_regression.create(train_data,target='price',features=['sqft_living'])
+
+# target going to predict i.e price ,features is the i/p if not given vl use all
+
+#evaluate the simple model
+print test_data['price'].mean()
+546487.743259
+
+
+print sqft_model.evaluate(test_data)
+{'max_error': 4347855.657258774, 'rmse': 268401.4976444349}
+
+#lets show how the predictions look like 
+
+import matplotlib.pyplot as plt
+# to plot inline in notebook
+%matplotlib inline
+
+plt.plot(test_data['sqft_living'],test_data['price'],'.',
+        test_data['sqft_living'],sqft_model.predict(test_data),'-')
+
+#1st line plot sqft_living vs price with . as points and 2nd line plots sqft_living with the predcition data as dashes
+
+when plotted you can see the blue line as the data points and green line as predicted house values 
+
+
+sqft_model.get('coefficients')
+
+name	index	value	stderr
+(intercept)	None	-44477.8472809	5074.63789027
+sqft_living	None	280.55298065	2.23503489047
+
+#Explore other features in the data 
+my_features =['bedrooms' ,'bathrooms' ,'sqft_living' ,'sqft_lot','floors','zipcode']
+
+sales[my_features].show()
+sales.show(view='BoxWhisker Plot',x='zipcode',y='price')
+
+# Build a regression model with more features 
+my_features_model = graphlab.linear_regression.create(train_data,target='price',features=my_features)
+
+compare sqft_model and my_features_model in terms of performance 
+print sqft_model.evaluate(test_data)
+print my_features_model.evaluate(test_data)
+
+{'max_error': 4363814.430452815, 'rmse': 268408.56065049645}
+{'max_error': 4391969.238162203, 'rmse': 193203.52157438835}
+
+
+#apply learned models to predict prices of 3 houses 
+house1 = sales[sales['id']=='5309101200']
+house1
+
+print house1['price']
+[620000, ... ]
+
+print sqft_model.predict(house1)
+[628849.3062782525]
+
+print my_features_model.predict(house1)
+[720485.7503643157]
+
+so ,here sqft_model gives better prediction altough on avg. my_features_model gave better predictions . 
+so adding more features nt always a better predictior 
+
+#prediction for a second ,fancier house
+house2 = sales[sales['id']=='1925069082']
+house2
+
+print house2['price']
+print sqft_model.predict(house2)
+print my_features_model.predict(house2)
+[2200000]
+[1257287.9829334244]
+[1417842.443058811]
+
+so ,here my_features_model gave better prediction for a fancier 
+
+
+
+
+1. Selection and summary statistics: In the notebook we covered in the module, we discovered which neighborhood (zip code) of Seattle had the highest average house sale price. Now, take the sales data, select only the houses with this zip code, and compute the average price. Save this result to answer the quiz at the end.
+
+
+zipcode seattle = 98039
+
+seatle_data =sales[sales['zipcode']=='98039']
+print seatle_data['price'].mean()
+2160606.6
+
+
+2. Filtering data: One of the key features we used in our model was the number of square feet of living space (‘sqft_living’) in the house. For this part, we are going to use the idea of filtering (selecting) data.
+
+In particular, we are going to use logical filters to select rows of an SFrame. You can find more info in the Logical Filter section of this documentation. Using such filters, first select the houses that have ‘sqft_living’ higher than 2000 sqft but no larger than 4000 sqft.What fraction of the all houses have ‘sqft_living’ in this range? Save this result to answer the quiz at the end.
+
+sqft_liv=sales[(sales['sqft_living'] > 2000) & (sales['sqft_living'] <4001) ]
+
+print sqft_liv.num_rows()
+print sales.num_rows()
+9118
+21613
+
+print 9118.0/21613.0
+0.421875722945
+
+3. Building a regression model with several more features: In the sample notebook, we built two regression models to predict house prices, one using just ‘sqft_living’ and the other one using a few more features, we called this set
+
+my_features = ['bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'zipcode']
+
+Now, going back to the original dataset, you will build a model using the following features:
+advanced_features = 
+[
+'bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'zipcode',
+'condition', # condition of house				
+'grade', # measure of quality of construction				
+'waterfront', # waterfront property				
+'view', # type of view				
+'sqft_above', # square feet above ground				
+'sqft_basement', # square feet in basement				
+'yr_built', # the year built				
+'yr_renovated', # the year renovated				
+'lat', 'long', # the lat-long of the parcel				
+'sqft_living15', # average sq.ft. of 15 nearest neighbors 				
+'sqft_lot15', # average lot size of 15 nearest neighbors 
+]
+
+Compute the RMSE (root mean squared error) on the test_data for the model using just my_features, and for the one using advanced_features.
+
+Note 1: both models must be trained on the original sales dataset, not the filtered one.
+
+Note 2: when doing the train-test split, make sure you use seed=0, so you get the same training and test sets, and thus results, as we do.
+
+Note 3: in the module we discussed residual sum of squares (RSS) as an error metric for regression, but GraphLab Create uses root mean squared error (RMSE). These are two common measures of error regression, and RMSE is simply the square root of the mean RSS:
+
+train_data,test_data = sales.random_split(.8,seed=0)
+ 
+
+my_features_model = graphlab.linear_regression.create(train_data,target='price',features=my_features,validation_set=None)
+
+my_advanced_features=graphlab.linear_regression.create(train_data,target='price',features=advanced_features,validation_set=None)
+
+print my_features_model.evaluate(test_data)
+print my_advanced_features.evaluate(test_data)
+
+{'max_error': 3486584.509381928, 'rmse': 179542.43331269105}
+{'max_error': 3556849.413848093, 'rmse': 156831.11680191013}
+
+
+What is the difference in RMSE between the model trained with my_features and the one trained with advanced_features? Save this result to answer the quiz at the end.
+
+
+print 179542.43331269105-156831.11680191013
+22711.3165108
+
+
+
+
+
+
+

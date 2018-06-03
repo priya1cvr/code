@@ -1,0 +1,327 @@
+1. Recommending items based on global popularity can (check all that apply):
+
+provide personalization
+capture context (e.g., time of day)
+none of the above c 
+
+2. Recommending items using a classification approach can (check all that apply):
+
+provide personalization c 
+capture context (e.g., time of day) c
+none of the above
+
+3.Recommending items using a simple count based co-occurrence matrix can (check all that apply):
+
+provide personalization c
+capture context (e.g., time of day) 
+none of the above 
+(slide 15 People who bought x also bought y)
+
+4. Question 4
+Recommending items using featurized matrix factorization can (check all that apply):
+
+provide personalization c
+capture context (e.g., time of day)  c 
+none of the above
+
+5. Normalizing co-occurrence matrices is used primarily to account for: slide 18
+
+people who purchased many items
+items purchased by many people c 
+eliminating rare products
+none of the above
+
+6.A store has 3 customers and 3 products. Below are the learned feature vectors for each user and product. Based on this estimated model, which product would you recommend most highly to User #2?
+User ID	Feature vector
+1	(1.73, 0.01, 5.22)
+2	(0.03, 4.41, 2.05)
+3	(1.13, 0.89, 3.76)
+Product ID	Feature vector
+1	(3.29, 3.44, 3.67)
+2	(0.82, 9.71, 3.88)
+3	(8.34, 1.72, 0.02)
+
+max (user2'sFeatureVector * Product i's FeatureVector)
+
+ans  (0.03*3.29 + 4.41*3.44 + 2.05*3.67 ) = 22.7926
+	 (0.03*0.82 + 4.41*9.71 + 2.05*3.88 ) =	50.7997
+	 (0.03*8.34 + 4.41*1.72 + 2.05*0.02 ) = 7.8764
+
+8.For the liked and recommended items displayed below, calculate the recall and round to 2 decimal points. (As in the lesson, green squares indicate recommended items, magenta squares are liked items. Items not recommended are grayed out for clarity.) Note: enter your answer in American decimal format (e.g. enter 0.98, not 0,98)
+
+#of greens = 4
+#of magneta = 3 
+#of magneta and gray out = 2 
+#of greens & magneta = 1  
+
+recall = recommended / liked   = 1/3
+
+===========================================================================================================================
+
+Lab Learnings 
+
+import graphlab
+#Load Music data
+song_data = graphlab.SFrame('song_data.gl/')
+
+
+#Exploring Music data
+song_data.head()
+
+user_id	song_id	listen_count	title	artist		song
+b80344d063b5ccb3212f76538
+f3d9e43d87dca9e ...	SOAKIMP12A8C130995	1	The Cove	Jack Johnson The Cove - Jack Johnson
+
+graphlab.canvas.set_target('ipynb')
+
+song_data['song'].show()
+
+Value	Count	Percent
+Sehr kosmisch - ...	5,970	0.535%	
+Undo - Björk	5,281	0.473%
+
+len(song_data)
+1116609
+
+#Count number of users 
+users = song_data['user_id'].unique()
+
+len(users)
+66346
+
+#Create a song recommender
+train_data,test_data = song_data.random_split(.8,seed=0)
+
+#Simple Popularity based recommender 
+popularity_model = graphlab.popularity_recommender.create(train_data,user_id='user_id',item_id='song')
+
+# item id in our case is the product and since we don't have exactly product here ,so item id is song 
+Preparing data set.
+    Data has 893580 observations with 66085 users and 9952 items.
+    Data prepared in: 2.25538s
+893580 observations to process; with 9952 unique items.  
+
+
+#Use the popularity model to make some predictions 
+popularity_model.recommend(users=[users[0]]) 
+# given 1st person of users array. 
+
+user_id	song	score	rank
+279292bb36dbfc7f505e36ebf
+038c81eb1d1d63e ...	Sehr kosmisch - Harmonia	4754.0	1
+....
+....
+
+
+popularity_model.recommend(users=[users[1]]) 
+# given 2nd person of users array. 
+
+Observation :  every users gets same recommendation , this is the problem with popularity model 
+				i.e no personalisation 
+
+Lets make a more personalised approach 
+
+#Build a song recommender with personalization 
+personalized_model = graphlab.item_similarity_recommender.create(train_data,user_id='user_id',item_id='song')
+
+Preparing data set.
+    Data has 893580 observations with 66085 users and 9952 items.
+    Data prepared in: 2.16107s
+Training model from provided data.
+Gathering per-item and per-user statistics.
++--------------------------------+---------
+
+
+#Applying the personalized model to make song recommendations 
+personalized_model.recommend(users=[users[0]])
+
+user_id	song	score	rank
+279292bb36dbfc7f505e36ebf
+038c81eb1d1d63e ...	Riot In Cell Block Number
+Nine - Dr Feelgood ...	0.0374999940395	1
+
+279292bb36dbfc7f505e36ebf
+038c81eb1d1d63e ...	Sei Lá Mangueira -
+Elizeth Cardoso ...	0.0331632643938	2
+
+
+personalized_model.recommend(users=[users[1]])
+
+user_id	song	score	rank
+c067c22072a17d33310d7223d
+7b79f819e48cf42 ...	Grind With Me (Explicit
+Version) - Pretty Ricky ...	0.0459424376488	1
+
+c067c22072a17d33310d7223d
+7b79f819e48cf42 ...	There Goes My Baby -
+Usher ...	0.0331920742989	2
+
+
+Here it is more personalised 
+
+getting similar items 
+personalized_model.get_similar_items(['Naked - Marques Houston'])
+
+song	similar	score	rank
+Naked - Marques Houston	This Time - Q-Burns
+Abstract Message ...	0.0502793192863	1
+
+Naked - Marques Houston	Nobody (Featuring Athena
+Cage) (LP Version) - ...	0.0464285612106	2
+
+
+#Quantitative comparison between the models
+%matplotlib inline
+
+model_performance = graphlab.recommender.util.compare_models(test_data,[popularity_model,personalized_model],
+                                                            user_sample=0.05)
+
+#sample =0.05 means 5 % of test data  
+
+Precision and recall summary statistics by cutoff
++--------+-----------------+------------------+
+| cutoff |  mean_precision |   mean_recall    |
++--------+-----------------+------------------+
+|   1    | 0.0272944387581 | 0.00768879893752 |
+|   2    | 0.0269532582736 |  0.015055753413  |
+
+.....
+Precision and recall summary statistics by cutoff
++--------+-----------------+-----------------+
+| cutoff |  mean_precision |   mean_recall   |
++--------+-----------------+-----------------+
+|   1    |  0.190719890822 | 0.0576651172096 |
+|   2    |  0.15933128625  | 0.0922018161527 |
+|   3    |  0.141931081542 |  0.122030191273 |
+....
+
+
+
+================================================================================================
+
+Assignment 
+
+1.
+Counting unique users: The method .unique() can be used to select the unique elements in a column of data. In this question, you will compute the number of unique users who have listened to songs by various artists. For example, to find out the number of unique users who listened to songs by 'Kanye West', all you need to do is select the rows of the song data where the artist is 'Kanye West', and then count the number of unique entries in the ‘user_id’ column. 
+
+Compute the number of unique users for each of these artists: 'Kanye West', 'Foo Fighters', 'Taylor Swift' and 'Lady GaGa'. Save these results to answer the quiz at the end. 
+
+
+kanye_west =song_data[song_data['artist'] =='Kanye West']
+
+kanye_west['user_id'].unique()
+dtype: str
+Rows: 2522
+['18325842a941bc58449ee71d659a08d1c1bd2383', '82c458f2e9bc30f87890b408e5b965114989edf4', '37b97745b5649ca367aab9e4999528b470ecc692' ....] 
+
+
+foo_fighters =song_data[song_data['artist']=='Foo Fighters']
+cnt_foo = foo_fighters['user_id'].unique()
+len(cnt_foo)
+ 2055
+
+
+taylor_swift =song_data[song_data['artist'] =='Taylor Swift']
+cnt_swift = taylor_swift['user_id'].unique()
+len(cnt_swift)
+3246
+
+lady_gaga =song_data[song_data['artist'] =='Lady GaGa']
+
+lady_gaga['user_id'].unique()
+dtype: str
+Rows: 2928
+['fe85b96ba1983219b296f6b4869dd29eb2b72ff9', 'e8813fe73c90d69b4f744251c68fce896ec2aede', '3a829c9fa2a7b69f4067260200d35cc1af84020d'....]
+
+2.
+
+Using groupby-aggregate to find the most popular and least popular artist: each row of song_data contains the number of times a user listened to particular song by a particular artist. If we would like to know how many times any song by 'Kanye West' was listened to, we need to select all the rows where ‘artist’=='Kanye West' and sum the ‘listen_count’ column. If we would like to find the most popular artist, we would need to follow this procedure for each artist, which would be very slow. Instead, you will learn about a very important method:
+.groupby()
+
+Follow these steps to find the most popular artist in the dataset:
+
+The .groupby method has two important parameters:
+
+i. key_columns, which takes the column we want to group, in our case, ‘artist’
+ii. operations, where we define the aggregation operation we using, in our case, we want to sum over the ‘listen_count’.
+
+song_data.groupby(key_columns='artist', operations={'total_count': graphlab.aggregate.SUM('listen_count')})
+
+the total number of listens for each artist will be stored in ‘total_count’.
+
+Sort the resulting SFrame according to the ‘total_count’, and find the artist with the most popular and least popular artist in the dataset. Save these results to answer the quiz at the end.
+
+
+total_cnt = song_data.groupby(key_columns='artist', operations={'total_count': graphlab.aggregate.SUM('listen_count')})
+
+total_cnt.sort('total_count',ascending=False).print_rows(num_rows=3375)  
+# here you shd know the total records by 1st getting length len(total_cnt)
+
+artist	total_count
+Kings Of Leon	43218 - Most Popular 
+Dwight Yoakam	40619
+...
+William Tabbert  14 
+
+total_cnt.sort('total_count',ascending=True)
+
+artist	total_count
+William Tabbert	14 - Least Popular 
+Reel Feelings	24
+
+3. 
+
+Using groupby-aggregate to find the most recommended songs: Now that we learned how to use .groupby() to compute aggregates for each value in a column, let’s use to find the song that is most recommended by the personalized_model model we learned in the iPython notebook above. Follow these steps to find the most recommended song:
+
+Split the data into 80% training, 20% testing, using seed=0, as was done in the iPython notebook above.Train an item_similarity_recommender, as done in the iPython notebook, using the training data.Next, we are going to make recommendations for the users in the test data, but there are over 200,000 users (58,628 unique users) in the test set. Computing recommendations for these many users can be slow in some computers. Thus, we will use only the first 10,000 users only in this question. Using this command to select this subset of users:
+
+subset_test_users = test_data['user_id'].unique()[0:10000]
+
+Let’s compute one recommended song for each of these test users. Use this command to compute these recommendations:
+
+personalized_model.recommend(subset_test_users,k=1)
+
+user_id	song	score	rank
+c067c22072a17d33310d7223d
+7b79f819e48cf42 ...	Grind With Me (Explicit
+Version) - Pretty Ricky ...	0.0459424376488	1
+696787172dd3f5169dc94deef
+
+97e427cee86147d ...	Senza Una Donna (Without
+A Woman) - Zucchero / ...	0.017026577677	1
+.....
+
+
+Finally, we can use .groupby() to find the most recommended song! :) When we used .groupby() in the previous question, we summed up the total ‘listen_count’ for each artist, by setting the parameter SUM in the aggregator:
+
+operations={'total_count': graphlab.aggregate.SUM('listen_count')}
+
+For this question, we simply want to count how often each song is recommended, so we will use the COUNT aggregator instead of SUM, and store the results in a column we will call ‘count’ by using:
+
+
+operations={'count': graphlab.aggregate.COUNT()}
+And, since we want to use the song titles as the key to the aggregator instead of of the ‘artist’, we use:
+key_columns='song'
+
+
+new_cnt = song_data.groupby(key_columns='song', operations={'count': graphlab.aggregate.COUNT()})
+
+By sorting the results, you will find out the most recommended song to the first 10,000 users in the test data! Save these results to answer the quiz at the end.
+
+new_cnt.sort('count',ascending=False) 
+
+song	count
+Sehr kosmisch - Harmonia	5970 - Most Popular 
+Undo - Björk	5281
+...
+
+
+new_cnt.sort('count',ascending=True) 
+
+song	count
+Younger Than Springtime -William Tabbert ...	12. -> least popular 
+Hubcap - Sleater-kinney	12.  -> least popular  
+Trahison - Vitalic	15
+
+
+

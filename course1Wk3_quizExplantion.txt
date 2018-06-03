@@ -1,0 +1,40 @@
+The simple threshold classifier for sentiment analysis described in the video (check all that apply):
+
+Must have pre-defined positive and negative attributes   c
+Must either count attributes equally or pre-define weights on attributes c 
+Defines a possibly non-linear decision boundary
+
+For a linear classifier classifying between “positive” and “negative” sentiment in a review x, Score(x) = 0 implies (check all that apply):
+
+The review is very clearly “negative”
+We are uncertain whether the review is “positive” or “negative” c
+We need to retrain our classifier because an error has occurred
+
+True or false: High classification accuracy always indicates a good classifier. f 
+explanation - in 2010 90% of the emails are spam so here your accuracy can be 90% .which maynt be good classifier 
+slide 34
+
+True or false: For a classifier classifying between 5 classes, there always exists a classifier with accuracy greater than 0.18.  t
+
+True or false: A false negative is always worse than a false positive. f
+expln:
+A false positive is where you receive a positive result for a test, when you should have received a negative results. It’s sometimes called a “false alarm” or “false positive error.” It’s usually used in the medical field, but it can also apply to other arenas (like software testing). Some examples of false positives:
+A pregnancy test is positive, when in fact you aren’t pregnant.
+A cancer screening test comes back positive, but you don’t have the disease.
+A prenatal test comes back positive for Down’s Syndrome, when your fetus does not have the disorder(1).
+Virus software on your computer incorrectly identifies a harmless program as a malicious one.
+
+A related concept is a false negative, where you receive a negative result when you should have received a positive one. For example, a pregnancy test may come back negative even though you are in fact pregnant.
+
+
+
+
+
+Which of the following statements are true? (Check all that apply)
+Test error tends to decrease with more training data until a point, and then does not change (i.e., curve flattens out) c
+Test error always goes to 0 with an unboundedly large training dataset
+Test error is never a function of the amount of training data
+ 
+
+
+

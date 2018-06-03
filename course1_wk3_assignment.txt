@@ -1,0 +1,356 @@
+import graphlab
+
+#Read some product review data
+products = graphlab.SFrame('amazon_baby.gl/')
+
+products.head
+
+Data:
++-------------------------------+-------------------------------+--------+
+|              name             |             review            | rating |
++-------------------------------+-------------------------------+--------+
+|    Planetwise Flannel Wipes   | These flannel wipes are OK... |  3.0   |
+|     Planetwise Wipe Pouch     | it came early and was not ... |  5.0   |
+| Annas Dream Full Quilt wit... | Very soft and comfortable ... |  5.0   |
+| Stop Pacifier Sucking with... | This is a product well wor... |  5.0   |
+| Stop Pacifier Sucking with... | All of my kids have cried ... |  5.0   |
+ ....
+
+ #build the word count vector for each review
+products['word_count'] = graphlab.text_analytics.count_words(products['review'])
+
+products.head()
+name	review	rating	word_count
+Planetwise Flannel Wipes	These flannel wipes are
+OK, but in my opinion ...	3.0	{'and': 5, '6': 1,
+'stink': 1, 'because' ...
+Planetwise Wipe Pouch	it came early and was not
+disappointed. i love ...	5.0	{'and': 3, 'love': 1,
+'it': 2, 'highly': 1, ...
+ 
+graphlab.canvas.set_target('ipynb')
+products['name'].show()
+
+Value					Count	Percent
+Vulli Sophie the ...	785		0.428%	
+Simple Wishes ...		562		0.306%
+
+#lets explore Vulli Sophie
+giraffe_reviews=products[products['name']=='Vulli Sophie the Giraffe Teether']
+
+len(giraffe_reviews)
+785
+
+giraffe_reviews
+name	review	rating	word_count
+Vulli Sophie the Giraffe
+Teether ...		He likes chewing on all
+				the parts especially the ...	5.0		{'and': 1, 'all': 1,
+'because': 1, 'it': 1, ...
+
+
+giraffe_reviews['rating'].show(view='Categorical')
+Value	Count	Percent
+5		535	68.153%	
+4		95	12.102%	
+3		62	7.898%
+
+
+#Build a sentiment classifier
+products['rating'].show(view='Categorical')
+
+Value	Count	Percent
+5	107,054	58.33%	
+4	33,205	18.092%
+
+
+#Define what's a positive and a negative sentiment
+#ignore all 3* reviews 
+products=products[products['rating']!=3]
+
+products 
+name	review	rating	word_count
+Planetwise Wipe Pouch	it came early and was not
+disappointed. i love ...	5.0	{'and': 3, 'love': 1,
+'it': 2, 'highly': 1, ...
+
+now create another column called sentiment 
+
+#positive sentiment =4* or 5* reviews
+products['sentiment']=products['rating']>=4
+
+products.head()
+
+name	review	rating	word_count	sentiment
+Planetwise Wipe Pouch	it came early and was not
+disappointed. i love ...	5.0	{'and': 3, 'love': 1,
+'it': 2, 'highly': 1, ...	1
+
+now we are ready to train our sentiment classifier
+
+#lets train the sentiment classifier
+
+train_data,test_data = products.random_split(.8,seed=0)
+
+sentiment_model = graphlab.logistic_classifier.create(train_data,
+                                                      target='sentiment',
+                                                     features=['word_count'],
+                                                     validation_set=test_data)
+
+#evaluate the sentiment model
+sentiment_model.evaluate(test_data,metric='roc_curve')
+'roc_curve': Columns:
+ 	threshold	float
+ 	fpr	float
+ 	tpr	float
+ 	p	int
+ 	n	int
+ 
+ Rows: 100001
+ 
+ Data:
+ +-----------+----------------+----------------+-------+------+
+ | threshold |      fpr       |      tpr       |   p   |  n   |
+ +-----------+----------------+----------------+-------+------+
+ |    0.0    |      1.0       |      1.0       | 27976 | 5328 |
+ |   1e-05   | 0.909346846847 | 0.998856162425 | 27976 | 5328 |
+ |   2e-05   | 0.896021021021 | 0.998748927652 | 27976 | 5328 |
+ |   3e-05   | 0.886448948949 | 0.998462968259 | 27976 | 5328 |
+ |   4e-05   | 0.879692192192 | 0.998284243637 | 27976 | 5328 |
+ |   5e-05   | 0.875187687688 | 0.998212753789 | 27976 | 5328 |
+ |   6e-05   | 0.872184684685 | 0.998177008865 | 27976 | 5328 |
+ |   7e-05   | 0.868618618619 | 0.998034029168 | 27976 | 5328 |
+ |   8e-05   | 0.864677177177 | 0.997998284244 | 27976 | 5328 |
+ |   9e-05   | 0.860735735736 | 0.997962539319 | 27976 | 5328 |
+ +-----------+----------------+----------------+-------+------+
+ [100001 rows x 5 columns]
+ Note: Only the head of the SFrame is printed.
+ You can use print_rows(num_rows=m, num_columns=n) to print more rows and columns.}
+
+
+roc_curve- curve that shows false positive with true positive
+
+sentiment_model.show(view='Evaluation')
+
+TruePositive	FalseNegative	Accuracy	Precision
+26521				1455		0.916		0.952
+FalsePositive	TrueNegative	Recall	F1 Score
+1327				4001		0.948	0.95
+
+
+#apply the learned model to understand sentiment for Giraffe
+giraffe_reviews['predicted_sentiment'] = sentiment_model.predict(giraffe_reviews,output_type='probability')
+
+giraffe_reviews.head()
+#here you can see a new col predicted_sentiment added 
+
+#sort the reveiws based on the predicted sentiment and explore 
+giraffe_reviews=giraffe_reviews.sort('predicted_sentiment',ascending=False)
+
+to see positive reviews 
+# 0th review 
+giraffe_reviews[0]['review']
+
+Sophie, oh Sophie, your time has come. My granddaughter, Violet is 5 months old and starting to teeth. What joy little Sophie brings to Violet. Sophie is made of a very pliable rubber that is sturdy but not tough. It is quite easy for Violet to twist Sophie into unheard of positions to get Sophie into her mouth. The little nose and hooves fit perfectly into small mouths, and the drooling has purpose. The paint on Sophie is food quality.Sophie was born in 1961 in France. The maker had wondered why there was nothing available for babies and made Sophie from the finest rubber, phthalate-free on St Sophie's Day, thus the name was born. Since that time millions of Sophie's populate the world. She is soft and for babies little hands easy to grasp. Violet especially loves the bumpy head and horns of Sophie. Sophie has a long neck that easy to grasp and twist. She has lovely, sizable spots that attract Violet's attention. Sophie has happy little squeaks that bring squeals of delight from Violet. She is able to make Sophie squeak and that brings much joy. Sophie's smooth skin is soothing to Violet's little gums. Sophie is 7 inches tall and is the exact correct size for babies to hold and love.As you well know the first thing babies grasp, goes into their mouths- how wonderful to have a toy that stimulates all of the senses and helps with the issue of teething. Sophie is small enough to fit into any size pocket or bag. Sophie is the perfect find for babies from a few months to a year old. How wonderful to hear the giggles and laughs that emanate from babies who find Sophie irresistible. Viva La Sophie!Highly Recommended.  prisrob 12-11-09"
+
+# 1st review
+giraffe_reviews[1]['review']
+
+to see most negative reviews 
+giraffe_reviews[-1]['review']
+
+=====================================================================
+Programming Assignment 
+
+1 .
+selected_words = ['awesome', 'great', 'fantastic', 'amazing', 'love', 'horrible', 'bad', 'terrible', 'awful', 'wow', 'hate']
+
+
+def awesome_count(word_count):
+    if 'awesome' in word_count:
+        return word_count['awesome']
+    else:
+        return 0
+
+
+products['awesome'] = products['word_count'].apply(awesome_count)
+
+Repeat this process for the other 11 words in selected_words. (Here, we described a simple procedure to obtain the counts for each selected_word. There are other more efficient ways of doing this, and we encourage you to explore this further.)Using the .sum() method on each of the new columns you created, answer the following questions: Out of the selected_words, which one is most used in the dataset? Which one is least used? Save these results to answer the quiz at the end.
+
+iterate the same for rest and find the sum 
+
+sum(products['awesome'])
+2002
+sum(products['great'])
+42420
+sum(products['fantastic'])
+873
+sum(products['amazing'])
+1305
+sum(products['love'])
+40277
+sum(products['horrible'])
+659
+sum(products['bad'])
+3197
+sum(products['terrible'])
+673
+sum(products['awful'])
+345
+sum(products['wow'])
+131
+sum(products['hate'])
+1057
+
+
+2. Create a new sentiment analysis model using only the selected_words as features:
+Notebook above, we used word counts for all words as features for our sentiment classifier. Now, you are just going to use the selected_words:
+
+Use the same train/test split as in the IPython Notebook from lecture:
+
+train_data,test_data = products.random_split(.8, seed=0)
+Train a logistic regression classifier (use graphlab.logistic_classifier.create) using just the selected_words. Hint: you can use this parameter in the .create() call to specify the features used to be exactly the new columns you just created:
+
+features=selected_words
+
+Call your new model: selected_words_model.
+
+You will now examine the weights the learned classifier assigned to each of the 11 words in selected_words and gain intuition as to what the ML algorithm did for your data using these features. In GraphLab Create, a learned model, such as the selected_words_model, has a field 'coefficients', which lets you look at the learned coefficients. You can access it by using:
+
+selected_words_model = graphlab.logistic_classifier.create(train_data,
+                                                      target='sentiment',
+                                                     features=selected_words,
+                                                     validation_set=test_data)
+
+selected_words_model['coefficients']
+
+ 
+The result has a column called ‘value’, which contains the weight learned for each feature.
+
+Using this approach, sort the learned coefficients according to the ‘value’ column using .sort(). Out of the 11 words in selected_words, which one got the most positive weight? Which one got the most negative weight? Do these values make sense for you? Save these results to answer the quiz at the end.
+
+new=selected_words_model['coefficients'] 
+new.sort('value',ascending=False).print_rows(num_rows=12)
+
+     name    | index | class |      value       |      stderr      |
++-------------+-------+-------+------------------+------------------+
+|     love    |  None |   1   |  1.39989834302   | 0.0287147460124  |
+| (intercept) |  None |   1   |  1.36728315229   | 0.00861805467824 |
+|   awesome   |  None |   1   |  1.05800888878   |  0.110865296265  |
+|   amazing   |  None |   1   |  0.892802422508  |  0.127989503231  |
+|  fantastic  |  None |   1   |  0.891303090304  |  0.154532343591  |
+|    great    |  None |   1   |  0.883937894898  | 0.0217379527921  |
+|     wow     |  None |   1   | -0.0541450123333 |  0.275616449416  |
+|     bad     |  None |   1   | -0.985827369929  | 0.0433603009142  |
+|     hate    |  None |   1   |  -1.40916406276  | 0.0771983993506  |
+|    awful    |  None |   1   |  -1.76469955631  |  0.134679803365  |
+|   horrible  |  None |   1   |  -1.99651800559  | 0.0973584169028  |
+|   terrible  |  None |   1   |  -2.09049998487  | 0.0967241912229  |
++-------------+-------+-------+------------------+------------------+
+
+
+which one got the most positive weight? - love 
+Which one got the most negative weight? - terrible
+
+3. Comparing the accuracy of different sentiment analysis model: Using the method
+evaluate(test_data)
+
+What is the accuracy of the selected_words_model on the test_data? What was the accuracy of the sentiment_model that we learned using all the word counts in the IPython Notebook above from the lectures? What is the accuracy majority class classifier on this task? How do you compare the different learned models with the baseline approach where we are just predicting the majority class? Save these results to answer the quiz at the end.
+
+Hint: we discussed the majority class classifier in lecture, which simply predicts that every data point is from the most common class. This is baseline is something we definitely want to beat with models we learn from data.
+
+Q.How do you compare the different learned models with the baseline approach where we are just predicting the majority class?
+
+They all performed about the same.
+The model learned using all words performed much better than the one using the only the selected_words. And, the model learned using the selected_words performed much better than just predicting the majority class.
+The model learned using all words performed much better than the other two. The other two approaches performed about the same. c 
+Predicting the simply majority class performed much better than the other two models. 
+
+
+selected_words_model.evaluate(test_data,metric='roc_curve')
+
+'roc_curve': Columns:
+ 	threshold	float
+ 	fpr	float
+ 	tpr	float
+ 	p	int
+ 	n	int
+ 
+ Rows: 100001
+ 
+ Data:
+ +-----------+-----+-----+-------+------+
+ | threshold | fpr | tpr |   p   |  n   |
+ +-----------+-----+-----+-------+------+
+ |    0.0    | 1.0 | 1.0 | 27976 | 5328 |
+ |   1e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   2e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   3e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   4e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   5e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   6e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   7e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   8e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ |   9e-05   | 1.0 | 1.0 | 27976 | 5328 |
+ +-----------+-----+-----+-------+------+
+
+
+selected_words_model.show(view='Evaluation')
+
+TruePositive	FalseNegative	Accuracy	Precision
+27836				140			0.843		0.845
+FalsePositive	TrueNegative	Recall		F1 Score
+5094				234			0.995		0.914
+
+What is the accuracy of the selected_words_model on the test_data?  -0.843
+What was the accuracy of the sentiment_model - 0.916 
+
+
+ 
+ 4. Interpreting the difference in performance between the models: To understand why the model with all word counts performs better than the one with only the selected_words, we will now examine the reviews for a particular product.
+
+We will investigate a product named ‘Baby Trend Diaper Champ’. (This is a trash can for soiled baby diapers, which keeps the smell contained.)Just like we did for the reviews for the giraffe toy in the IPython Notebook in the lecture video, before we start our analysis you should select all reviews where the product name is ‘Baby Trend Diaper Champ’. Let’s call this table diaper_champ_reviews.Again, just as in the video, use the sentiment_model to predict the sentiment of each review in diaper_champ_reviews and sort the results according to their ‘predicted_sentiment’.What is the ‘predicted_sentiment’ for the most positive review for ‘Baby Trend Diaper Champ’ according to the sentiment_model from the IPython Notebook from lecture? Save this result to answer the quiz at the end.Now use the selected_words_model you learned using just the selected_words to predict the sentiment most positive review you found above. Hint: if you sorted the diaper_champ_reviews in descending order (from most positive to most negative), this command will be helpful to make the prediction you need:
+
+diaper_champ_reviews=products[products['name']=='Baby Trend Diaper Champ']
+
+diaper_champ_reviews['predicted_sentiment']=selected_words_model.predict(diaper_champ_reviews,output_type='probability')
+
+diaper_champ_reviews.head()
+
+What is the ‘predicted_sentiment’ for the most positive review for ‘Baby Trend Diaper Champ’ according to the sentiment_model from the IPython Notebook from lecture?   -   
+
+
+selected_words_model.predict(diaper_champ_reviews[0:1], output_type='probability')
+dtype: float
+Rows: 1
+[0.796940851290673]
+
+
+
+to see positive reviews 
+diaper_champ_reviews[0]['review']
+'I LOVE LOVE LOVE this product! It is SO much easier to use than the Diaper Genie, (you need a PHD in poopy to figure out how to use the darn thing!) and it even takes the same bags as my kitchen trash can, shich is super convenient, and cost efficient as I can buy them in bulk.The only reason for not rating it a 5 star was that I did have one small problem with it. The foam gasket in the barrell which keeps the poopy smell inside the unit ripped somehow, and it got VERY stinky. HOWEVER, I contacted the manufacturer though their website, and received an email back the same day stating that this was unusual, and that replacement gaskets were on their way to me. They arrived inside of a week and after replacing, it works great again! (They even sent me extras should it happen again)I HIGHLY reccomend this diaper pail over ANY competitors, you will not be sorry!'
+
+
+Q . The ‘predicted_sentiment’ for the most positive review for ‘Baby Trend Diaper Champ’, according to the sentiment_model 
+
+diaper_champ_reviews=products[products['name']=='Baby Trend Diaper Champ']
+
+diaper_champ_reviews['predicted_sentiment']=sentiment_model.predict(diaper_champ_reviews,output_type='probability')
+sentiment_model.predict(diaper_champ_reviews[0:1], output_type='probability')
+dtype: float
+Rows: 1
+[0.9584435808934209]
+
+
+Why is the predicted_sentiment for the most positive review found using the model with all word counts (sentiment_model) much more positive than the one using only the selected_words (selected_words_model)? Hint: examine the text of this review, the extracted word counts for all words, and the word counts for each of the selected_words, and you will see what each model used to make its prediction. Save this result to answer the quiz at the end.
+
+
+Q.
+Question 11
+Why is the value of the predicted_sentiment for the most positive review found using the sentiment_model much more positive than the value predicted using the selected_words_model?
+
+The sentiment_model is just too positive about everything. 
+The selected_words_model is just too negative about everything.   
+This review was positive, but used too many of the negative words in selected_words. 
+None of the selected_words appeared in the text of this review. c 

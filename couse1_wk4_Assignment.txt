@@ -1,0 +1,269 @@
+import graphlab
+
+#Load some text data -from wikipedia,pages on people
+people =graphlab.SFrame('people_wiki.gl/')
+
+people.head()
+URI	name	text
+<http://dbpedia.org/resou
+rce/Digby_Morrell> ...	Digby Morrell	digby morrell born 10
+october 1979 is a former ..
+
+
+#Explore the dataset and checkout the text it contains
+obama =people[people['name']=='Barack Obama']
+
+obama['text']
+type: str
+Rows: ?
+['barack hussein obama ii brk husen bm born august 4 1961 is the 44th and current president of the united states and the ..]
+
+
+clooney =people[people['name']=='George Clooney']
+clooney['text']
+
+#Get the word counts for obama article
+obama['word_count']=graphlab.text_analytics.count_words(obama['text'])
+
+print obama['word_count']
+[{'operations': 1, 'represent': 1, 'office': 2, 'unemployment': 1, 'is': 2, 'doddfrank': 1, 'over': 1, 'unconstitutional': 1
+...]
+
+#Sort the word counts for the obama article 
+obama_word_count_table = obama[['word_count']].stack('word_count',new_column_name=['word','count'])
+obama_word_count_table.sort('count',ascending=False)
+
+word	count
+the	40
+in	30
+and	21
+of	18
+to	14
+his	11
+
+
+Cant compute tf-id on obama article in isolatin as it depends on entire corpus 
+You need the normaliser which is the no. of times a word appears in every article .
+so we need ot compute for entire corpus 
+
+#Compute TF-IDF for the corpus 
+#1st compute word_count for entire corpus 
+people['word_count'] = graphlab.text_analytics.count_words(people['text'])
+
+people.head()
+
+URI	name	text	word_count
+<http://dbpedia.org/resou
+rce/Digby_Morrell> ...	Digby Morrell	digby morrell born 10
+october 1979 is a former ...	{'selection': 1,'carltons': 1, 'being': ..
+
+
+
+#2nd compute TF-IDF 
+tfidf=graphlab.text_analytics.tf_idf(people['word_count'])
+
+tfidf
+dtype: dict
+Rows: 59071
+[{'selection': 3.836578553093086, 'carltons': 7.0744723837970485, 'being': 1.7938099524877322, '2005': 1.6425861253275964, '
+....]
+
+we end up with a table with a dict of tfidf's
+
+
+doubt :
+graphlab.version = 2.1 ,still tfidf shows dtype as dict not as table with col named docs 
+
+
+#in video it is shown as people['tfidf']=tfidf['docs'] but we store it as below as docs table is not created 
+
+people['tfidf']=tfidf
+people.head() - gives 5 col as last col is tfidf 
+
+
+#Examine the TF-IDF for the obama article
+obama variable is re-read as new col tfidf is created  
+
+obama = people[people['name']=='Barack Obama']
+
+obama[['tfidf']].stack('tfidf',new_column_name=['word','tfidf']).sort('tfidf',ascending=False)
+word	tfidf
+obama	43.2956530721
+act	27.678222623
+iraq	17.747378588
+
+--here you can see the ,'in' words which are uninformative are not here 
+
+#Manually compute distances between a few people 
+#lets create 2 new variables 
+clinton=people[people['name']=='Bill Clinton']
+beckham = people[people['name']=='David Beckham']
+
+clinton.head()
+URI	name	text	word_count. tfidf
+<http://dbpedia.org/resou
+rce/Bill_Clinton> ...	Bill Clinton	william jefferson bill
+clinton born william ...	{'rating': 1, 'serving':
+1, 'surplus': 1, ... {'rating': 5.377023594040234, ...
+
+
+
+cosine similarity - here we have distance version ,the lower the distance is better 
+
+obama['tfidf'][0]
+{'13th': 4.9534091674263925,
+ '1961': 3.3207419573634955,
+ '1992': 2.278351314316948
+ ...
+ }
+
+
+ #Is obama closer to clinton than to beckham ? 
+graphlab.distances.cosine(obama['tfidf'][0] ,clinton['tfidf'][0])
+0.8339854936884276
+
+graphlab.distances.cosine(obama['tfidf'][0] ,beckham['tfidf'][0])
+0.9791305844747478
+
+
+#Build a nearest neighboour model for document retrieval 
+knn_model= graphlab.nearest_neighbors.create(people,features=['tfidf'],label='name')
+
+#Applying the nearest neighbours model for retrieval
+#Who is closest to obama
+
+knn_model.query(obama)
+
+query_label	reference_label	distance	rank
+0	Barack Obama	0.0	1
+0	Joe Biden	0.794117647059	2
+0	Joe Lieberman	0.794685990338	3
+0	Kelly Ayotte	0.811989100817	4
+0	Bill Clinton	0.813852813853	5
+
+#Other examples of document retrieval 
+swift = people[people['name']=='Taylor Swift']
+
+knn_model.query(swift)
+
+query_label	reference_label	distance	rank
+0	Taylor Swift	0.0	1
+0	Carrie Underwood	0.76231884058	2
+0	Alicia Keys	0.764705882353	3
+0	Jordin Sparks	0.769633507853	4
+0	Leona Lewis	0.776119402985	5
+
+
+======================================================================
+Assignment 
+
+Now, take a particular famous person, 'Elton John'. 
+These results illustrate why TF-IDF is useful for finding important words. Save these results to answer the quiz at the end.Measuring distance:
+
+
+elton =people[people['name']=='Elton John']
+
+
+#sort the word_counts for elton
+elton[['word_count']].stack('word_count',new_column_name=['word','count']).sort('count',ascending=False)
+
+What are the 3 words in his articles with highest word counts? 
+
+word	count
+the	27
+in	18
+and	15
+of	13
+
+....
+
+
+What are the 3 words in his articles with highest TF-IDF? 
+
+elton[['tfidf']].stack('tfidf',new_column_name=['word','tfidf']).sort('tfidf',ascending=False)
+word		tfidf
+furnish		18.38947184
+elton		17.48232027
+billboard	17.3036809575
+john		13.9393127924
+songwriters	11.250406447
+
+
+Measuring distance: Elton John is a famous singer; let’s compute the distance between his article and those of two other famous singers. In this assignment, you will use the cosine distance, which one measure of similarity between vectors
+
+What’s the cosine distance between the articles on ‘Elton John’ and ‘Victoria Beckham’? 
+
+victoria =people[people['name']=='Victoria Beckham']
+graphlab.distances.cosine(elton['tfidf'][0],victoria['tfidf'][0])
+0.9567006376655429
+
+
+
+What’s the cosine distance between the articles on ‘Elton John’ and Paul McCartney’? W
+paul =people[people['name']=='Paul McCartney']
+
+graphlab.distances.cosine(elton['tfidf'][0],paul['tfidf'][0])
+0.8250310029221779
+
+Which one of the two is closest to Elton John? Does this result make sense to you? 
+lower the cosine is better 
+
+Building nearest neighbors models with different input features and setting the distance metric: In the sample notebook, we built a nearest neighbors model for retrieving articles using TF-IDF as features and using the default setting in the construction of the nearest neighbors model. Now, you will build two nearest neighbors models:Using word counts as featuresUsing TF-IDF as features
+
+In both of these models, we are going to set the distance function to cosine similarity. Here is how: when you call the function
+graphlab.nearest_neighbors.create
+add the parameter:
+distance='cosine'
+
+Now we are ready to use our model to retrieve documents. Use these two models to collect the following results:
+
+ What’s the most similar article, other than itself, to the one on ‘Victoria Beckham’ using word count features?What’s the most similar article, other than itself, to the one on ‘Victoria Beckham’ using TF-IDF features?
+
+
+knn_wrd_cnt_model= graphlab.nearest_neighbors.create(people,features=['word_count'],label='name',distance='cosine')
+knn_tfidf_model= graphlab.nearest_neighbors.create(people,features=['tfidf'],label='name',distance='cosine')
+
+
+
+#What’s the most similar article, other than itself, to the one on ‘Elton John’ using word count features?
+knn_wrd_cnt_model.query(elton)
+
+query_label	reference_label	distance	rank
+0	Elton John			2.22044604925e-16	1
+0	Cliff Richard		0.16142415259	2
+0	Sandro Petrone		0.16822542751	3
+0	Rod Stewart			0.168327165587	4
+0	Malachi O'Doherty	0.177315545979	5
+
+#What’s the most similar article, other than itself, to the one on ‘Elton John’ using TF-IDF features?
+knn_tfidf_model.query(elton)
+query_label	reference_label	distance	rank
+0	Elton John				-2.22044604925e-16	1
+0	Rod Stewart				0.717219667893	2
+0	George Michael			0.747600998969	3
+0	Sting (musician)		0.747671954431	4
+0	Phil Collins			0.75119324879	5
+
+
+What’s the most similar article, other than itself, to the one on ‘Victoria Beckham’ using word count features?
+knn_wrd_cnt_model.query(victoria)
+
+query_label	reference_label	distance	rank
+0	Victoria Beckham			-2.22044604925e-16	1
+0	Mary Fitzgerald (artist)	0.207307036115	2
+0	Adrienne Corri				0.214509782788	3
+0	Beverly Jane Fry			0.217466468741	4
+0	Raman Mundair				0.217695474992	5
+
+
+
+What’s the most similar article, other than itself, to the one on ‘Victoria Beckham’ using TF-IDF features?
+
+knn_tfidf_model.query(victoria)
+
+query_label	reference_label	distance	rank
+0	Victoria Beckham		1.11022302463e-16	1
+0	David Beckham			0.548169610263	2
+0	Stephen Dow Beckham		0.784986706828	3
+0	Mel B					0.809585523409	4
+0	Caroline Rush			0.819826422919	5

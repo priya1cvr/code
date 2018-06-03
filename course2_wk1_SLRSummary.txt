@@ -1,0 +1,104 @@
+
+
+Expected value - Weighted average over all possible values that air can take weighted by how likely the air is to take 
+each of those values 
+
+---------------------------
+This is executed in Jupyter notebook 
+
+
+import graphlab
+
+import os
+os.getcwd()
+'/Users/pbishwal/Documents/Techie/Python/Machine_Learning/coursera/course2/wk1/7_Summary'
+
+path='/Users/pbishwal/Documents/Techie/Python/Machine_Learning/coursera/course2/wk1/7_Summary/'
+
+sales =graphlab.SFrame.read_csv(path+"Philadelphia_Crime_Rate_noNA.csv")
+
+sales
+HousePrice	HsPrc ($10,000)	CrimeRate	MilesPhila	PopChg	Name	County
+140463	14.0463	29.7	10.0	-1.0	Abington	Montgome
+113033	11.3033	24.1	18.0	4.0	Ambler	Montgome
+
+#Exploring the data 
+graphlab.canvas.set_target('ipynb')
+sales.show(view='Scatter Plot',x="CrimeRate",y="HousePrice")
+# this will open up in brower(safari default) if it is run in terminal 
+
+#above graph shows higher house have lower crime rates 
+
+#Fit the regression model using crime as the feature
+crime_model = graphlab.linear_regression.create(sales,target="HousePrice",features=['CrimeRate'],validation_set=None,verbose=False)
+
+
+#Lets see what our fit looks like 
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+
+plt.plot(sales['CrimeRate'],sales['HousePrice'],'.',
+        sales['CrimeRate'],crime_model.predict(sales),'-')
+
+
+#Remove Center City and redo the analysis
+sales_noCC =sales[sales['MilesPhila']!=0.0]
+
+#i.e center city is the town which is having 0 miles 
+
+sales_noCC.show(view="Scatter Plot" ,x="CrimeRate",y="HousePrice")
+#here cc is remove
+
+crime_model_nocc = graphlab.linear_regression.create(sales,target="HousePrice",features=['CrimeRate'],validation_set=None,verbose=False)
+
+
+plt.plot(sales_noCC['CrimeRate'],sales_noCC['HousePrice'],'.',
+        sales_noCC['CrimeRate'],crime_model_noCC.predict(sales_noCC),'-')
+
+# shows downward trend but with much better fit 
+
+#compare coefficients for full data fit vs no center city fit
+crime_model.get('coefficients')
+
+name	index	value	stderr
+(intercept)	None	176626.046881	11245.5882194
+CrimeRate	None	-576.804949058	226.90225951
+
+crime_model_noCC.get('coefficients')
+name	index	value	stderr
+(intercept)	None	225204.604303	16404.0247514
+CrimeRate	None	-2287.69717443	491.537478123
+[2 rows x 4 columns]
+
+Above: We see that for the "no Center City" version, per unit increase in crime, the predicted decrease in house prices is 2,287. In contrast, for the original dataset, the drop is only 576 per unit increase in crime. This is significantly different!
+
+
+###High leverage points: Center City is said to be a "high leverage" point because it is at an extreme x value where there are not other observations. As a result, recalling the closed-form solution for simple regression, this point has the potential to dramatically change the least squares line since the center of x mass is heavily influenced by this one point and the least squares line will try to fit close to that outlying (in x) point. If a high leverage point follows the trend of the other data, this might not have much effect. On the other hand, if this point somehow differs, it can be strongly influential in the resulting fit.
+
+###Influential observations:
+An influential observation is one where the removal of the point significantly changes the fit. As discussed above, high leverage points are good candidates for being influential observations, but need not be. Other observations that are not leverage points can also be influential observations (e.g., strongly outlying in y even if x is a typical value).
+
+
+#Remove high-value outlier neighborhoods and redo analysis
+sales_nohighend = sales_noCC[sales_noCC['HousePrice']<350000]
+crime_model_nohighend = graphlab.linear_regression.create(sales_nohighend,target='HousePrice',features=['CrimeRate'],validation_set=None,verbose=False)
+
+crime_model_noCC.get('coefficients')
+name	index	value	stderr
+(intercept)	None	225204.604303	16404.0247514
+CrimeRate	None	-2287.69717443	491.537478123
+[2 rows x 4 columns]
+
+
+
+crime_model_nohighend.get('coefficients')
+name	index	value	stderr
+(intercept)	None	199073.589615	11932.5101105
+CrimeRate	None	-1837.71280989	351.519609333
+
+Above: We see that removing the outlying high-value neighborhoods has *some* effect on the fit, but not nearly as much as our high-leverage Center City datapoint.
+
+
+

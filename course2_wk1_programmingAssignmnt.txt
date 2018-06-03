@@ -1,0 +1,113 @@
+1.Assume you fit a regression model to predict house prices from square feet based on a training data set consisting of houses with square feet in the range of 1000 and 2000. In which interval would we expect predictions to do best?
+
+[0, 1000]
+[1000, 2000] c
+[2000, 3000]
+
+2.In a simple regression model, if you increase the input value by 1 then you expect the output to change by:
+
+
+Also 1
+The value of the slope parameter c 
+The value of the intercept parameter 
+Impossible to tell
+
+3.Two people present you with fits of their simple regression model for predicting house prices from square feet. You discover that the estimated intercept and slopes are exactly the same. This necessarily implies that these two people fit their models on exactly the same data set.
+
+
+True 
+False c 
+
+4. 
+You have a data set consisting of the sales prices of houses in your neighborhood, with each sale time-stamped by the month and year in which the house sold. You want to predict the average value of houses in your neighborhood over time, so you fit a simple regression model with average house price as the output and the time index (in months) as the input. Based on 10 months of data, the estimated intercept is $4569 and the estimated slope is 143 ($/month). If you extrapolate this trend forward in time, at which time index (in months) do you predict that your neighborhood's value will have doubled relative to the value at month 10? (Round to the nearest month).
+
+52
+soln:
+	y= $4569 + 143.x => y=4569+143.10 = 5999
+	2y= $4569 + 143.xhat where x and xhat in months 
+	subtract 1st from second 
+	y=143(xhat-x) => xhat = (y/143)+x now put x =10 and y=5999 to solve for xhat which = 52 
+
+5.  
+Your friend in the U.S. gives you a simple regression fit for predicting house prices from square feet. The estimated intercept is -44850 and the estimated slope is 280.76. You believe that your housing market behaves very similarly, but houses are measured in square meters. To make predictions for inputs in square meters, what intercept must you use? Hint: there are 0.092903 square meters in 1 square foot.
+
+(Note: the next quiz question will ask for the slope of the new model.)
+
+
+-44850 intercept remains same 
+
+6.what slope must you use? Hint: there are 0.092903 square meters in 1 square foot.
+
+280.76/0.092903 = 3022.07678977
+
+700074.846
+
+
+=========================
+1 . Which of the following is NOT a linear regression model. Hint: remember that a linear regression model is always linear in the parameters, but may use non-linear features.
+
+y= w0 + w1.x
+y= w0 + w1.x'sqr  
+y= w0 + w1.log(x)
+y= w0w1 + log(w1)x c 
+
+
+2.Your estimated model for predicting house prices has a large positive weight on 'square feet living'. This implies that if we remove the feature 'square feet living' and refit the model, the new predictive performance will be worse than before.
+
+
+True 
+False c
+
+3.Complete the following: Your estimated model for predicting house prices has a positive weight on 'square feet living'. You then add 'lot size' to the model and re-estimate the feature weights. The new weight on 'square feet living' [_________] be positive.
+
+will not
+will definitely
+might c 
+
+4.If you double the value of a given feature (i.e. a specific column of the feature matrix), what happens to the least-squares estimated coefficients for every other feature? (assume you have no other feature that depends on the doubled feature i.e. no interaction terms).
+
+
+They double 
+They halve
+They stay the same c
+It is impossible to tell from the information provided
+
+5. Gradient descent/ascent is...
+
+
+A model for predicting a continuous variable
+An algorithm for minimizing/maximizing a function c 
+A theoretical statistical result
+An approximation to simple linear regression
+A modeling technique in machine learning
+
+6.Gradient descent/ascent allows us to...
+
+
+Predict a value based on a fitted function 
+Estimate model parameters from data c 
+Assess performance of a model on test data 
+
+7.Which of the following statements about step-size in gradient descent is/are TRUE (select all that apply)
+
+
+It's important to choose a very small step-size 
+The step-size doesn't matter
+If the step-size is too large gradient descent may not converge  c
+If the step size is too small (but not zero) gradient descent may take a very long time to converge c
+
+8.Let's analyze how many computations are required to fit a multiple linear regression model using the closed-form solution based on a data set with 50 observations and 10 features. In the videos, we said that computing the inverse of the 10x10 matrix H^T HH 
+T
+ H was on the order of D^3D 
+3
+  operations. Let's focus on forming this matrix prior to inversion. How many multiplications are required to form the matrix H^T HH TH?
+
+Please enter a number below.
+
+5000
+
+9.More generally, if you have DD features and NN observations what is the total complexity of computing (H^T H)^{-1}(H 
+TH) −1?
+
+Dsq*N + Dcube 
+from above (que 8) the HTH complexity s DsqN , and inverse complexity is Dcube 

@@ -1,0 +1,8 @@
+// A simple Java program to introduce a linked list 
+
+package linkedLists;
+
+public class LinkedList {
+	Node head ; // head of the list
+		
+}

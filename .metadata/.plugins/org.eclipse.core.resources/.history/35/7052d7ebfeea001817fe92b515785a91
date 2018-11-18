@@ -1,0 +1,23 @@
+package linkedLists;
+/*
+ 1) At the front of the linked list
+ 2) After a given node.
+ 3) At the end of the linked list.
+ */
+import linkedLists.LinkedList.Node;
+
+public class addNodeLL {
+	//push function to push an new element in LL
+	public  void push(int new_data,Node head) {
+		//1. allocate a node and put data 
+		Node newNode = new Node(new_data);
+		
+		//2. Make next of new node as head 
+		newNode.next = head;
+		
+		//3. Point head to new node 
+		head =newNode;
+	}
+
+	
+}

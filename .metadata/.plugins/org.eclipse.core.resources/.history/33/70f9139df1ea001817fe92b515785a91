@@ -1,0 +1,39 @@
+/*  A simple Java program to introduce a linked list 
+	Let us create a simple linked list with 3 nodes.
+*/
+
+package linkedLists;
+
+public class LinkedList {
+	Node head ; // head of the list
+	
+	/* Linked list Node.  
+	 This inner class is made static so that 
+    		main() can access it 
+    	*/
+	
+	static class Node {
+		int data;
+		Node next ;
+		
+		//Constructor to create a new node 
+		//By default next initialized as null
+		Node(int d){
+			data=d;
+			next =null;
+			}
+	}
+	
+	public static void main(String[] args) {
+		//Start with empty linked list 
+		LinkedList llist = new LinkedList();
+		llist.head = new Node(1);
+		Node second = new Node(2);
+		Node third = new Node(3);
+		
+		// Link first node with the second node 
+		llist.head.next=second;
+		// Link second node with the third node 
+		second.next=third;
+	}
+}

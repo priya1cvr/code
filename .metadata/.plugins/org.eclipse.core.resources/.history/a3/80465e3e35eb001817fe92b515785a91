@@ -1,0 +1,8 @@
+package queues;
+
+public class Queue {
+	int front ,rear ,size,capacity,array[];
+	
+	//Queues constructor 
+	public 
+}

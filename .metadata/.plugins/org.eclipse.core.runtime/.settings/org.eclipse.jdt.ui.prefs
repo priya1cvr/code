@@ -1,7 +1,11 @@
+content_assist_category_order=org.eclipse.jdt.ui.templateProposalCategory\:0\u0000org.eclipse.jdt.ui.swtProposalCategory\:1\u0000org.eclipse.jdt.ui.javaNoTypeProposalCategory\:2\u0000org.eclipse.jdt.ui.javaTypeProposalCategory\:3\u0000org.eclipse.jdt.ui.textProposalCategory\:4\u0000org.eclipse.jdt.ui.javaAllProposalCategory\:5\u0000org.eclipse.jpt.jaxb.ui.jaxbCompletionProposals\:6\u0000org.eclipse.jpt.jpa.ui.jpaProposalCategory\:7\u0000org.eclipse.jst.ws.jaxws.ui.jaxwsProposalComputer\:8\u0000org.eclipse.mylyn.java.ui.javaAllProposalCategory\:9\u0000org.eclipse.pde.api.tools.ui.apitools_proposal_category\:10\u0000org.eclipse.recommenders.calls.rcp.proposalCategory.templates\:11\u0000org.eclipse.recommenders.chain.rcp.proposalCategory.chain\:12\u0000org.eclipse.recommenders.completion.rcp.proposalCategory.intelligent\:13\u0000org.scala-ide.sdt.core.scala_completions\:14\u0000org.scala-ide.sdt.core.scala_java_completions\:15\u0000
+content_assist_disabled_computers=org.eclipse.recommenders.calls.rcp.proposalCategory.templates\u0000org.eclipse.recommenders.chain.rcp.proposalCategory.chain\u0000
 content_assist_number_of_computers=27
 content_assist_proposals_background=255,255,255
 content_assist_proposals_foreground=0,0,0
 eclipse.preferences.version=1
+org.eclipse.jdt.internal.ui.navigator.layout=2
+org.eclipse.jdt.internal.ui.navigator.librariesnode=true
 org.eclipse.jdt.ui.formatterprofiles.version=13
 org.eclipse.jdt.ui.text.code_templates_migrated=true
 org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>

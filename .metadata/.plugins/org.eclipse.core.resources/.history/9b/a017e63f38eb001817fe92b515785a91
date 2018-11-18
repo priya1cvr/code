@@ -1,0 +1,16 @@
+package queues;
+
+/*
+ * This class implements queue using Array 
+ */
+public class Queue {
+	int front ,rear ,size,capacity,array[];
+	
+	//Queues constructor 
+	public Queue(int capacity) {
+		this.capacity=capacity;
+		front =this.size=0 ;
+		rear=capacity-1;
+		array = new 
+	}
+}

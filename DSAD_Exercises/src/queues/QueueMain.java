@@ -38,8 +38,8 @@ public class QueueMain {
 		// now lets add items over here and see the index of the front and rear 
 		que.enqueue(60);
 		System.out.println("front index of new item is :"+que.front);
-		System.out.println("rear index of new item is :"+que.rear+"\n");
-		System.out.println("Size  of queue is " +  que.size()); 
+		System.out.println("rear index of new item is :"+que.rear);
+		System.out.println("Size  of queue is " +  que.size()+"\n"); 
 		
 		que.enqueue(70);
 		System.out.println("front index of new item is :"+que.front);

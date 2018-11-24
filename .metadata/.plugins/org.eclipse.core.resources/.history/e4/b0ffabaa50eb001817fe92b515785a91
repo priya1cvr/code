@@ -1,0 +1,20 @@
+package queues;
+
+
+public class QueueWithLL {
+	int front ,rear ,size,capacity;
+	/* 	Linked list Node.  
+ 	This inner class is made static so that main() can access it 
+	*/
+	static class Node {
+		int data;
+		Node next ;
+		
+		//Constructor to create a new node 
+		//By default next initialized as null
+		Node(int d){
+			data=d;
+			next =null;
+		}
+	}
+}

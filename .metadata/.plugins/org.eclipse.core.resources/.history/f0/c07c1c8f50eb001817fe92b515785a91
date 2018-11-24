@@ -1,0 +1,6 @@
+package queues;
+
+public class QueueWithLL {
+	int front ,rear ,size,capacity;
+	
+}

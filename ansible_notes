@@ -1,0 +1,274 @@
+# Getting Started:
+# 1. vagrant plugin install vagrant-hostmanager
+# 2. vagrant up
+# 3. vagrant ssh
+
+change below in .bashrc for all hosts 
+alias lt='ls -ltra'
+alias bashrc='vim ~/.bashrc'
+alias sbash='source ~/.bashrc'
+
+alias pb='cd ~/ansible/playbook'
+alias ans='cd ~/ansible'
+
+alias control='ssh 192.168.135.10'
+alias lb01='ssh 192.168.135.101'
+alias app01='ssh 192.168.135.111'
+alias app02='ssh 192.168.135.112'
+alias db01='ssh 192.168.135.121'
+
+
+vim /etc/hostname 
+add respective host alias (e.g control)
+
+exit from all hosts connected 
+
+vagrant halt
+vagrant up 
+
+then vagrant ssh 
+
+install ansible in control host 
+mkdir ansible (in control home dir )
+cd ansible
+run below commands 
+sudo apt-get install software-properties-common
+sudo apt-add-repository ppa:ansible/ansible
+sudo apt-get update
+sudo apt-get install ansible
+
+exit from all hosts connected 
+vagrant halt 
+vagrant up 
+vagrant ssh
+
+in control - vi /etc/ansible/hosts - all host info defined 
+vi /etc/ansible/ansible.cfg - default path ansible points
+
+copy the dev and ansible.cfg from git(https://github.com/wipphanp/ansible) and paste in /ansible folder in control home dir 
+ansible checks for ansible.cfg in current dir then home then /etc/ansible/ansible.cfg 
+
+basic commands
+ ansible -m ping all
+ ansible -m command -a 'echo Hi' all
+ ansible --list-hosts  "*" 
+ [ansible --list-hosts  <regular expr>]
+ansible --list-hosts  webserver[0]
+ ansible -m command -a 'hostname' all
+
+
+ sample playbook (shd by yaml file and 2 space indented)
+ # List the hostname
+---
+- hosts:  all
+  tasks:
+  - command:  hostname
+  - command:  echo Hi
+
+mkdir /home/vagrant/ansible/playbook
+create- vim hostname.yml and paste above
+execute playbook from ansible folder 
+vagrant@control:~/ansible$ ansible-playbook playbook/hostname.yml 
+-creating playbook checks status of the hosts(i.e whether it is able to execute the command or not )
+ i.e 
+TASK [command] ***********
+changed: [lb01] ....
+
+--configure load balancer
+vagrant@control:~$ cd ansible
+vagrant@control:~$ vim lb.yml
+paste below 
+# Loadbalancer
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name: installing nginx
+        apt: name=nginx state=present update_cache=yes
+
+vagrant@control:~/ansible$ ansible-playbook lb.yml
+
+this is installed in lb01 as you have given hosts: loadbalancer which is lb01
+vagrant@control:~/ansible$ lb01
+vagrant@lb01:~$ nginx -v
+nginx version: nginx/1.4.6 (Ubuntu)
+vagrant@lb01:~$ service nginx status
+ * nginx is running
+vagrant@lb01:~$
+
+--install db server 
+vagrant@control:~/ansible$vi db.yml
+# Database server
+---
+  - hosts:  database
+    become: true
+    tasks:
+      - name: installing mysql-server
+        apt: name=mysql-server state=present update_cache=yes
+
+vagrant@control:~/ansible$ ansible-playbook db.yml
+
+this is installed in db01 as you have given hosts: database which is db01 in dev file 
+vagrant@control:~/ansible$ db01
+vagrant@db01:~$ service mysql status
+mysql start/running, process 6723   
+
+--install webserver 
+vi ansible/ws.yml
+# Webserver 
+---
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name: installing webserver components
+        apt: name={{ item }} state=present update_cache=yes   note :{{}} - if more than 1 items to install
+         with_items:
+          -  apache2
+          -  libapache2-mod-wsgi
+          -  python-pip
+          -  python-virtualenv
+
+vagrant@control:~/ansible$  ansible-playbook ws.yml
+vagrant@control:~/ansible$ app01
+vagrant@app01:~$ service apache2 status
+ * apache2 is running
+
+vagrant@app02:~$  service apache2 status
+ * apache2 is running
+
+--checking nginx is accessbile from control - default page 
+vagrant@control:~/ansible$ wget -qO- http://lb01
+
+--checking for app01 server -default page 
+vagrant@control:~/ansible$ wget -qO- http://app01 | less
+
+go to app02
+vagrant@app02:~$ cd /etc/apache2/sites-available/
+vagrant@app02:/etc/apache2/sites-available$ ls -lrt
+total 12
+-rw-r--r-- 1 root root 6437 Jan  7  2014 default-ssl.conf
+-rw-r--r-- 1 root root 1332 Jan  7  2014 000-default.conf
+
+
+vagrant@app02:/etc/apache2$ cd sites-enabled/
+vagrant@app02:/etc/apache2/sites-enabled$ lt
+total 8
+drwxr-xr-x 8 root root 4096 Nov 26 09:27 ..
+lrwxrwxrwx 1 root root   35 Nov 26 09:27 000-default.conf -> ../sites-available/000-default.conf  
+# note: points to conf file in sites-vailable
+drwxr-xr-x 2 root root 4096 Nov 26 09:27 .
+
+
+vagrant@control/ansible:~$ vim control.yml
+# control 
+---
+  - hosts:  control
+    become: true
+    tasks:
+      - name: installing tools
+        apt: name={{ item }} state=present update_cache=yes
+        with_items:
+          -  curl
+
+vagrant@control:~/ansible$ ansible-playbook control.yml
+--check curl installed in control 
+curl app01 - shows webpage of app01
+curl lb01 - shows webpage of lb01
+
+--server info
+vagrant@control:~/ansible$ ansible -m setup lb01  
+
+--which port are open
+vagrant@control:~/ansible$ ansible -a "netstat -an" db01
+
+
+add other stuffs to load balancer
+--vi lb.yml
+
+# Loadbalancer
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name:  installing nginx
+        apt: name=nginx state=present update_cache=yes
+
+      - name:  ensuring nginx is started 
+        service: name=nginx state=started update_cache=yes
+
+
+vagrant@control:~/ansible$ ansible-playbook lb.yml
+
+
+--start mysql server now .earlier you installed 
+# Database server
+---
+  - hosts:  database
+    become: true
+    tasks:
+      - name: installing mysql-server
+        apt: name=mysql-server state=present update_cache=yes
+
+      - name: ensure mysql-server is up and running
+        service: name=mysql-server state=started enabled=yes
+
+-- vi stop_stack.yml --stops all services 
+
+# Stops all services
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name:  stop nginx
+        service: name=nginx state=stopped
+
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name:  stop apache2
+        service: name=apache2 state=stopped
+
+  - hosts:  database
+    become: true
+    tasks:
+      - name: ensure mysql-server restarted
+        service: name=mysql state=stopped
+
+vagrant@control:~/ansible$ ansible-playbook stop_stack.yml
+go to app02 and check the status 
+vagrant@app01:~$ service apache2 status
+ * apache2 is not running
+vagrant@db01:~$ service mysql status
+mysql stop/waiting
+
+
+---now restart all services 
+# Restart all services
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name:  restart nginx
+        service: name=nginx state=started
+
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name:  restart apache2
+        service: name=apache2 state=started
+
+  - hosts:  database
+    become: true
+    tasks:
+      - name: ensure mysql-server restarted
+        service: name=mysql state=restarted
+
+now go to db01 and other hosts and check status 
+vagrant@db01:~$ service mysql status
+mysql start/running, process 9679
+
+vagrant@app01:~$ service apache2 status
+ * apache2 is running
+
+vagrant@lb01:~$ service nginx status
+ * nginx is running

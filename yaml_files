@@ -1,0 +1,328 @@
+# List the hostname
+---
+- hosts:  all
+  tasks:
+  - command:  hostname
+  - command:  echo Hi
+
+--vi lb.yml
+
+# Loadbalancer
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name: installing nginx
+        apt: name=nginx state=present update_cache=yes
+
+-- vi db.yml
+
+# Database server
+---
+  - hosts:  database
+    become: true
+    tasks:
+      - name: installing mysql-server
+        apt: name=mysql-server state=present update_cache=yes
+
+-- vi ws.yml
+# Webserver 
+---
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name: installing webserver components
+        apt: name={{ item }} state=present update_cache=yes
+        with_items:
+          -  apache2
+          -  libapache2-mod-wsgi
+          -  python-pip
+          -  python-virtualenv
+
+--vi control.yml
+# control 
+---
+  - hosts:  control
+    become: true
+    tasks:
+      - name: installing tools
+        apt: name={{ item }} state=present update_cache=yes
+        with_items:
+          -  curl
+
+--vi lb.yml
+
+# Loadbalancer
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name:  installing nginx
+        apt: name=nginx state=present update_cache=yes
+
+      - name:  ensuring nginx is started 
+        service: name=nginx state=started enabled=yes
+
+-- vi db.yml
+
+# Database server
+---
+  - hosts:  database
+    become: true
+    tasks:
+      - name: installing mysql-server
+        apt: name=mysql-server state=present update_cache=yes
+
+      - name: ensure mysql-server is up and running
+        service: name=mysql-server state=started enabled=yes
+
+-- vi stop_stack.yml
+
+# Stops all services
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name:  stop nginx
+        service: name=nginx state=stopped
+
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name:  stop apache2
+        service: name=apache2 state=stopped
+
+  - hosts:  database
+    become: true
+    tasks:
+      - name: ensure mysql-server restarted
+        service: name=mysql state=stopped
+
+
+-- vi restart_stack.yml
+
+# Restart all services
+---
+  - hosts:  loadbalancer
+    become: true
+    tasks:
+      - name:  restart nginx
+        service: name=nginx state=started
+
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name:  restart apache2
+        service: name=apache2 state=started
+
+  - hosts:  database
+    become: true
+    tasks:
+      - name: ensure mysql-server restarted
+        service: name=mysql state=restarted
+
+
+-- vi ws.yml
+# Webserver 
+---
+  - hosts:  webserver
+    become: true
+    tasks:
+      - name: installing webserver components
+        apt: name={{ item }} state=present update_cache=yes
+        with_items:
+          -  apache2
+          -  libapache2-mod-wsgi
+          -  python-pip
+          -  python-virtualenv
+      - name: ensure apache2 started
+        service: name=apache2 state=started enabled=yes
+
+      - name: ensure libapache2-mod-wsgi installed
+        apache2_module: state=present name=wsgi
+        notify: restart apache2
+    handlers:
+      - name: restart apache2
+        service: name=apache2 state=restarted
+
+
+-------------
+-----copy demo/app i.e application  to app server 
+vi ws.yml
+
+# Webserver                                                   
+---                                                           
+  - hosts: webserver                                          
+    become: true                                              
+    tasks:                                                    
+      - name: Install webserver components                    
+        apt: name={{ item }} state=present update_cache=yes   
+        with_items:                                           
+          - apache2                                           
+          - libapache2-mod-wsgi                               
+          - python-pip                                        
+          - python-virtualenv                                 
+                                                              
+      - name: ensure apache2 started                          
+        service: name=apache2 state=started enabled=yes       
+                                                              
+      - name: ensure libapache2-mod-wsgi installed            
+        apache2_module: state=present name=wsgi               
+        notify: restart apache2    
+
+      - name: copy demo app to webserver
+        copy: src=demo/app/ dest=/var/www/demo mode=0755 
+        notify: restart apache2
+    handlers:                                                 
+      - name: restart apache2                                 
+        service: name=apache2 state=restarted
+
+now from control/ansible/demo/ copy the demo.conf to  app server in /etc/apache2/sites-available/  
+
+# Webserver                                                   
+---                                                           
+  - hosts: webserver                                          
+    become: true                                              
+    tasks:                                                    
+      - name: Install webserver components                    
+        apt: name={{ item }} state=present update_cache=yes   
+        with_items:                                           
+          - apache2                                           
+          - libapache2-mod-wsgi                               
+          - python-pip                                        
+          - python-virtualenv                                 
+                                                              
+      - name: ensure apache2 started                          
+        service: name=apache2 state=started enabled=yes       
+                                                              
+      - name: ensure libapache2-mod-wsgi installed            
+        apache2_module: state=present name=wsgi               
+        notify: restart apache2    
+
+      - name: copy demo app to webserver
+        copy: src=demo/app/ dest=/var/www/demo mode=0755 
+        notify: restart apache2
+      - name: copy apache virtual host config
+        copy: src=demo/demo.conf dest=/etc/apache2/sites-available mode=0644 
+        notify: restart apache2
+
+    handlers:                                                 
+      - name: restart apache2                                 
+        service: name=apache2 state=restarted
+
+## now run ansible-playbook ws.yml and see that it has been copied to sites-available        
+vagrant@app01:/etc/apache2/sites-available$ ls -lrt
+total 16
+-rw-r--r-- 1 root root 6437 Jan  7  2014 default-ssl.conf
+-rw-r--r-- 1 root root 1332 Jan  7  2014 000-default.conf
+-rw-r--r-- 1 root root  280 Nov 26 11:59 demo.conf
+
+## need to change  default symbolic link to demo.conf in sites-enabled
+vagrant@app01:/etc/apache2/sites-available$ cd ../sites-enabled/
+vagrant@app01:/etc/apache2/sites-enabled$ ls -lrt
+total 0
+lrwxrwxrwx 1 root root 35 Nov 26 09:27 000-default.conf -> ../sites-available/000-default.conf
+
+## now in sites-enabled change the default symbolic link to demo.conf 
+
+
+# Webserver                                                   
+---                                                           
+  - hosts: webserver                                          
+    become: true                                              
+    tasks:                                                    
+      - name: Install webserver components                    
+        apt: name={{ item }} state=present update_cache=yes   
+        with_items:                                           
+          - apache2                                           
+          - libapache2-mod-wsgi                               
+          - python-pip                                        
+          - python-virtualenv                                 
+                                                              
+      - name: ensure apache2 started                          
+        service: name=apache2 state=started enabled=yes       
+                                                              
+      - name: ensure libapache2-mod-wsgi installed            
+        apache2_module: state=present name=wsgi               
+        notify: restart apache2    
+
+      - name: copy demo app to webserver
+        copy: src=demo/app/ dest=/var/www/demo mode=0755 
+        notify: restart apache2
+
+      - name: copy apache virtual host config
+        copy: src=demo/demo.conf dest=/etc/apache2/sites-available mode=0644 
+        notify: restart apache2
+
+      - name: deactivate default apache site
+        file: path=/etc/apache2/sites-enabled/000-default.conf state=absent 
+        notify: restart apache2
+
+      - name: activate default apache site
+        file: src=/etc/apache2/sites-available/demo.conf dest=/etc/apache2/sites-enabled/demo.conf state=link
+        notify: restart apache2
+
+    handlers:                                                 
+      - name: restart apache2                                 
+        service: name=apache2 state=restarted
+
+
+## now run the play book ot see changes 
+vagrant@control:~/ansible$ ansible-playbook ws.yml
+## now go to sites-enabled in app server to see the sym link point to demo.conf 
+vagrant@app01:/etc/apache2/sites-enabled$ ls -lrt
+total 0
+lrwxrwxrwx 1 root root 38 Nov 26 12:13 demo.conf -> /etc/apache2/sites-available/demo.conf
+
+## now install packages setup python virtualenv for the flask app
+
+
+# Webserver
+---                                                           
+  - hosts: webserver                                          
+    become: true                                              
+    tasks:                                                    
+      - name: Install webserver components                    
+        apt: name={{ item }} state=present update_cache=yes   
+        with_items:                                           
+          - apache2                                           
+          - libapache2-mod-wsgi                               
+          - python-pip                                        
+          - python-virtualenv                                 
+                                                              
+      - name: ensure apache2 started                          
+        service: name=apache2 state=started enabled=yes       
+                                                              
+      - name: ensure libapache2-mod-wsgi installed            
+        apache2_module: state=present name=wsgi               
+        notify: restart apache2    
+
+      - name: copy demo app to webserver
+        copy: src=demo/app/ dest=/var/www/demo mode=0755 
+        notify: restart apache2
+
+      - name: copy apache virtual host config
+        copy: src=demo/demo.conf dest=/etc/apache2/sites-available mode=0644 
+        notify: restart apache2
+
+      - name: deactivate default apache site
+        file: path=/etc/apache2/sites-enabled/000-default.conf state=absent 
+        notify: restart apache2
+
+      - name: activate default apache site
+        file: src=/etc/apache2/sites-available/demo.conf dest=/etc/apache2/sites-enabled/demo.conf state=link
+        notify: restart apache2
+
+      - name: setup python virtualenv for the flask app
+        pip: requirements=/var/www/demo/requirements.txt virtualenv=/var/www/demo/.venv 
+        notify: restart apache2      
+    handlers:                                                 
+      - name: restart apache2                                 
+        service: name=apache2 state=restarted
+
+ 
+vagrant@control:~/ansible$ ansible-playbook ws.yml
+
+## see the o/p 
+vagrant@control:~/ansible$ curl app01
+Hello, from sunny app01!

@@ -326,3 +326,441 @@ vagrant@control:~/ansible$ ansible-playbook ws.yml
 ## see the o/p 
 vagrant@control:~/ansible$ curl app01
 Hello, from sunny app01!
+
+
+## now makes changes in load balancer lb.yml 
+#n lb01 the conf before change is  default -> /etc/nginx/sites-available/default
+
+# Loadbalancer
+---
+  - hosts: loadbalancer
+    become: true
+    tasks:
+      - name: Install nginx
+        apt: name=nginx state=present update_cache=yes
+
+      - name: Ensure nginx started
+        service: name=nginx state=started enabled=yes
+
+      - name: Congigure nginx site
+        template: src=phase2_appserver/templates/nginx.conf.j2 dest=/etc/nginx/sites-available/demo mode=0644
+        notify: restart nginx
+
+      - name: deactivate default nginx site
+        file: path=/etc/nginx/sites-enabled/default state=absent
+        notify: restart nginx  
+
+      - name: activate demo nginx site
+        file: src=/etc/nginx/sites-available/demo dest=/etc/nginx/sites-enabled/demo state=link
+        notify: restart nginx
+    handlers:                                                 
+      - name: restart nginx                                 
+        service: name=nginx state=restarted
+
+#before running the ansible-playbook 
+#curl lb01 gives html page
+
+vagrant@control:~/ansible$ ansible-playbook lb.yml
+#but now curl lb01 gives 
+vagrant@control:~/ansible$ curl lb01
+Hello, from sunny app01!
+vagrant@control:~/ansible$ curl lb01
+Hello, from sunny app02!
+# also in this path(/etc/nginx/sites-available/demo) the varibles are replaced in lb01
+
+
+
+## now fetch from databases
+
+# add mysql db in webserver module ws.yml
+ with_items:
+          - apache2
+          - libapache2-mod-wsgi
+          - python-pip
+          - python-virtualenv
+          - python-mysqldb #----add this ,this will understand the mysql 
+
+vi db.yml
+## we provide msql credentials 
+
+# Database
+---
+  - hosts: database
+    become: true
+    tasks:
+      - name: Install required packages
+        apt: name={{ item }} state=present update_cache=yes
+        with_items:
+            - python-mysqldb
+
+      - name: Install mysql package
+        apt: name=mysql-server state=present update_cache=yes
+
+      - name: Ensure mysql is started
+        service: name=mysql state=started enabled=yes
+
+      - name: ensure mysql listening on all ports 
+        lineinfile: dest=/etc/mysql/my.cnf regexp=^bind-address line="bind-address = 0.0.0.0"
+        notify: restart mysql
+
+      - name: create demo database
+        mysql_db: name=demo state=present
+
+      - name: create database user 
+        mysql_user: name=demo password=demo priv=demo.*:ALL host='%' state=present
+    handlers:                                                 
+      - name: restart mysql                                 
+        service: name=mysql state=restarted    
+
+
+## lineinfile - means replace bind-address with 0.0.0.0 to listen to all hosts 
+
+vagrant@control:~/ansible/demo/app$ curl app02/db
+Database Connected from app02!
+vagrant@control:~/ansible/demo/app$ curl app01/db
+Database Connected from app01!
+
+## Roles - when you have same set of functions across different applications then there is no point in copying the same
+## code again and re running the playbook , so Roles comes to play.It means functionality
+vagrant@control:~/ansible$ mkdir roles
+vagrant@control:~/ansible/roles$ ansible-galaxy init control
+- control was created successfully
+## ansible-galaxy creates below services in that folder ,these are templates 
+vagrant@control:~/ansible/roles$ cd control
+vagrant@control:~/ansible/roles/control$ ls -lrt
+total 36
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 templates
+-rw-rw-r-- 1 vagrant vagrant 1328 Nov 27 06:30 README.md
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 files
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 tests
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 defaults
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 vars
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 meta
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 tasks
+drwxrwxr-x 2 vagrant vagrant 4096 Nov 27 06:30 handlers
+
+
+vagrant@control:~/ansible/roles$ ansible-galaxy init apache2
+vagrant@control:~/ansible/roles$ ansible-galaxy init mysql
+vagrant@control:~/ansible/roles$ ansible-galaxy init nginx
+vagrant@control:~/ansible/roles$ ansible-galaxy init apache2
+vagrant@control:~/ansible/roles$ ansible-galaxy init demo_app
+
+#all load balancing stuffs will be put in nginx role similiraly others 
+
+# now just copy the task part from control.yml and put it in /ansible/roles/control/tasks/main.yml
+  - name: Install tools
+    apt: name={{ item }} state=present update_cache=yes
+    with_items:
+      - curl
+      - python-httplib2
+
+#so now in control.yml(homefolder/control.yml) remove the tasks and paste below 
+vi control.yml
+
+# Controller
+---
+  - hosts: control
+    become: true
+    roles:
+      - control
+  # this control in roles refers to the roles folder /ansible/roles/control/tasks/main.yml
+  # -this basically makes code cleaner and modularises 
+
+vagrant@control:~/ansible$ ansible-playbook control.yml  
+vagrant@control:~/ansible$ curl app01
+Hello, from sunny app01!
+vagrant@control:~/ansible$ curl app02
+Hello, from sunny app02!
+
+
+## now copy the tasks from db.yml to the task part of mysql role i.e /ansible/roles/mysql/tasks/main.yml
+
+#copy below in main.yml for roles in mysql
+  - name: Install required packages
+    apt: name={{ item }} state=present update_cache=yes
+    with_items:
+      - python-mysqldb
+
+  - name: Install mysql package
+    apt: name=mysql-server state=present update_cache=yes
+
+  - name: Ensure mysql is started
+    service: name=mysql state=started enabled=yes
+
+  - name: ensure mysql listening on all ports
+    lineinfile: dest=/etc/mysql/my.cnf regexp=^bind-address line="bind-address = 0.0.0.0"
+    notify: restart mysql
+
+  - name: create demo database
+    mysql_db: name=demo state=present
+
+  - name: create database user
+    mysql_user: name=demo password=demo priv=demo.*:ALL host='%' state=present
+
+## copy handlers from db.yml and put it in handler/main.yml of mysql
+
+- name: restart mysql                                 
+  service: name=mysql state=restarted    
+
+## now in db.yml of home folder delete tasks and keep as below 
+# Database
+---
+  - hosts: database
+    become: true
+    roles:
+      - mysql
+
+vagrant@control:~/ansible$ ansible-playbook db.yml
+vagrant@control:~/ansible$ curl lb01/db
+Database Connected from app02!
+vagrant@control:~/ansible$ curl app01
+Hello, from sunny app01!
+vagrant@control:~/ansible$ curl app01/db
+Database Connected from app01!
+vagrant@control:~/ansible$ curl app02/db
+Database Connected from app02!
+
+#now change for ws.yml and put tasks in apache2/tasks/main.yml
+
+- name: Install webserver components
+  apt: name={{ item }} state=present update_cache=yes
+  with_items:
+    - apache2
+    - libapache2-mod-wsgi
+
+- name: ensure apache2 started
+  service: name=apache2 state=started enabled=yes
+
+- name: ensure libapache2-mod-wsgi installed
+  apache2_module: state=present name=wsgi
+  notify: restart apache2
+
+
+
+## copy handlers from ws.yml and put it in apache2/handler/main.yml 
+- name: restart apache2
+  service: name=apache2 state=restarted
+
+## change in ws.yml as - ws.yml roles are segregated in apache2 and demo_app
+vi ws.yml
+# Webserver
+---
+  - hosts: webserver
+    become: true
+    roles:
+      - apache2
+      - demo_app
+
+## note here 2 roles are there because in task/main.yml of apache2
+#- apache2
+# - libapache2-mod-wsgi
+# first 2 correspond to tasks of apache2 
+# last 3 correspond to tasks of demo appp
+#- python-pip
+#- python-virtualenv
+#- python-mysqldb
+
+
+## move the demo folder to files folder of demo_app
+vagrant@control:~/ansible$ mv demo roles/demo_app/files/
+
+## similiraly change tasks for demo_app for ws.yml to take the roles of demo_app 
+
+
+- name: Install webserver components
+  apt: name={{ item }} state=present update_cache=yes
+  with_items:
+    - python-pip
+    - python-virtualenv
+    - python-mysqldb
+
+- name: copy demo app to webserver
+  copy: src=demo/app/ dest=/var/www/demo mode=0755
+  notify: restart apache2
+
+- name: copy apache virtual host config
+  copy: src=demo/demo.conf dest=/etc/apache2/sites-available mode=0644
+  notify: restart apache2
+
+- name: deactivate default apache site
+  file: path=/etc/apache2/sites-enabled/000-default.conf state=absent
+  notify: restart apache2
+
+- name: activate default apache site
+  file: src=/etc/apache2/sites-available/demo.conf dest=/etc/apache2/sites-enabled/demo.conf state=link
+  notify: restart apache2
+
+- name: setup python virtualenv for the flask app
+  pip: requirements=/var/www/demo/requirements.txt virtualenv=/var/www/demo/.venv
+  notify: restart apache2
+
+
+## change in load balancer main.yml now ( roles/nginx/tasks/main.yml)
+
+- name: Install nginx
+  apt: name=nginx state=present update_cache=yes
+
+- name: Ensure nginx started
+  service: name=nginx state=started enabled=yes
+
+- name: Congigure nginx site
+  template: src=phase2_appserver/templates/nginx.conf.j2 dest=/etc/nginx/sites-available/demo mode=0644
+  notify: restart nginx
+
+- name: deactivate default nginx site
+  file: path=/etc/nginx/sites-enabled/default state=absent
+  notify: restart nginx
+
+- name: activate demo nginx site
+  file: src=/etc/nginx/sites-available/demo dest=/etc/nginx/sites-enabled/demo state=link
+  notify: restart nginx
+ 
+## change in handler of load balancer ( roles/nginx/handlers/main.yml)
+- name: restart nginx
+  service: name=nginx state=restarted
+
+
+## all the ymls were ran individually as ansible-playbook ws.yml/lb.yml ....
+## put together in sites.yml and run as below 
+
+vi sites.yml (in home folder -/home/vagrant/ansible)
+---
+#include all components in one place
+  - include: control.yml
+  - include: lb.yml
+  - include: db.yml
+  - include: ws.yml
+
+## now sites.yml can be run which will run all 
+vagrant@control:~/ansible$ ansible-playbook sites.yml
+
+
+###### Remove hard codings 
+
+vagrant@db01:/etc/mysql$ hostname
+db01
+vagrant@db01:/etc/mysql$ cat my.cnf | grep "bind"
+bind-address = 0.0.0.0
+
+# change the hard coded bind address in db.yml to the dynamic address as below 
+lineinfile: dest=/etc/mysql/my.cnf regexp=^bind-address line="bind-address = {{ansible_eth1.ipv4_address}}"
+# ansible -m setup db01 - the ansible_eth1.ipv4_address will be taken from the host setup (command ansible -m setup db01)
+
+#change in /home/vagrant/ansible/roles/mysql/defaults/main.yml and put below for using the defaults 
+vi main.yml  
+---
+# defaults file for mysql
+db_name: myapp
+db_user_name: dbuser
+db_user_pass: dbpass
+db_user_host: localhost
+
+# these values will be referred in variables present in /home/vagrant/ansible/roles/mysql/tasks/main.yml (so change as below)
+# here new user name and pwd are created 
+# if you are not giving any password the defaults main.yml will be referred 
+- name: create demo database                                                                                                      
+  mysql_db: name=demo state=present                                                                                               
+                                                                                                                                  
+- name: create database parameterized                                                                                             
+  mysql_db: name={{ db_name }} state=present                                                                                      
+                                                                                                                                  
+- name: create database user                                                                                                      
+  mysql_user: name={{ db_user_name }} password={{ db_user_pass }} priv={{ db_name }}.*:ALL host={{ db_user_host }} state=present  
+
+# db_user_pass,db_user_name ,db_name,db_user_host will be referred from defaults main.yml
+
+vagrant@control:~/ansible$ ansible-playbook db.yml
+
+## variables defined has a precedence ,e.g defaults folder has lowest precedence.check ansible documentation for more 
+
+## copy default values to nginx (/ansible/roles/nginx/defaults/main.yml)
+
+vi default/main.yml
+
+---
+# defaults file for nginx
+sites:
+  myapp:
+    frontend: 80
+    backend: 80
+
+#these values will be referred from the varialbe in nginx.conf.j2
+
+#cp  /home/vagrant/ansible/phase2_appserver/templates/nginx.conf.j2 /home/vagrant/ansible/roles/nginx/templates
+
+#replace hardcoded value in /home/vagrant/ansible/roles/nginx/templates/nginx.conf.j2 as below
+# these key values will be used by with_dict module in nginx/main.yml
+
+upstream {{ item.key }} {
+{% for server in groups.webserver %}
+    server {{ server }}:{{ item.value.backend }};
+{% endfor %}
+}
+
+server {
+    listen {{ item.value.frontend }};
+
+    location / {
+        proxy_pass http://{{ item.key }};
+    }
+}
+
+#change in main.yml of nginx
+# vi roles/nginx/tasks/main.yml
+
+---
+# tasks file for nginx
+- name: Install nginx
+  apt: name=nginx state=present update_cache=yes
+
+- name: Ensure nginx started
+  service: name=nginx state=started enabled=yes
+
+- name: Congigure nginx site
+  template: src=nginx.conf.j2 dest=/etc/nginx/sites-available/{{ item.key }} mode=0644
+  with_dict: "{{ sites }}"
+  notify: restart nginx
+
+- name: deactivate default nginx site
+  file: path=/etc/nginx/sites-enabled/default state=absent
+  notify: restart nginx
+
+- name: activate demo nginx site
+  file: src=/etc/nginx/sites-available/{{ item.key }} dest=/etc/nginx/sites-enabled/{{ item.key }} state=link
+  with_dict: "{{sites}}"
+  notify: restart nginx
+
+# change in lb.yml as below :
+
+
+#ansible-playbook lb.yml                                                                                            
+TASK [nginx : activate demo nginx site] *****************************************************
+ok: [lb01] => (item={'value': {u'frontend': 80, u'backend': 80}, 'key': u'myapp'})           
+
+# {{ item.key }} -> refers to the key mpapp from sites
+
+### Ansible Tower is an user interface
+## we'r creating new vm box for tower 
+
+Install Ansible Tower
+ 
+C:\Users\Administrator\Downloads\ansible-master
+λ vagrant init ansible/tower
+λ mkdir tower
+λ cd tower
+
+C:\Users\Administrator\Downloads\ansible-master\tower
+λ vagrant init ansible/tower
+
+λ vagrant up --provider virtualbox
+λ vagrant ssh
+
+  Welcome to Ansible Tower!
+
+  Log into the web interface here:
+
+    https://10.42.0.42/
+
+    Username: admin
+    Password: rn4wBrcmfJad

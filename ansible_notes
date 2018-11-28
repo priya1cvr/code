@@ -272,3 +272,27 @@ vagrant@app01:~$ service apache2 status
 
 vagrant@lb01:~$ service nginx status
  * nginx is running
+ 
+ 
+ ## check time taken to run a playbook 
+
+vagrant@control:~/ansible$ time ansible-playbook playbooks/stack_restart.yml
+
+## gather facts bydefault is true . set it to false  as  gather_facts: false in playbooks/stack_restart.yml
+in each task
+
+##update_cache default is 0 . so every time it is present it will update each every time
+this can be changed to make it update after every time by giving it in parameter as below in sites.yml(any yml)
+---                                                         
+#include all components in one place                        
+- hosts: all                                                
+    become: true                                              
+    gather_facts: false                                       
+    tasks:                                                    
+      - name: update apt cache                                
+        apt: update_cache=yes cache_valid_time=86400   
+
+  - include: control.yml                                    
+  - include: lb.yml                                         
+  - include: db.yml                                         
+  - include: ws.yml                                      

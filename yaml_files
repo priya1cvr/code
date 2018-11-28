@@ -764,3 +764,91 @@ C:\Users\Administrator\Downloads\ansible-master\tower
 
     Username: admin
     Password: rn4wBrcmfJad
+
+#############################
+## check time taken to run a playbook 
+
+vagrant@control:~/ansible$ time ansible-playbook playbooks/stack_restart.yml
+
+## gather facts bydefault is true . set it to false  as  gather_facts: false in playbooks/stack_restart.yml
+in each task
+
+##update_cache default is 0 . so every time it is present it will update each every time
+this can be changed to make it update after every time by giving it in parameter as below in sites.yml(any yml)
+---                                                         
+#include all components in one place                        
+- hosts: all                                                
+    become: true                                              
+    gather_facts: false                                       
+    tasks:                                                    
+      - name: update apt cache                                
+        apt: update_cache=yes cache_valid_time=86400   
+
+  - include: control.yml                                    
+  - include: lb.yml                                         
+  - include: db.yml                                         
+  - include: ws.yml                                      
+
+  #################################
+                                       
+## use of packages 
+vi roles/control/tasks/main.yml
+
+---
+# tasks file for control
+  - name: Install tools
+    apt: name={{ item }} state=present update_cache=yes
+    with_items:
+      - curl
+      - python-httplib2
+    tags: [ 'packages' ]
+
+#o/p
+###
+vagrant@control:~/ansible$ ansible-playbook sites.yml ## runs all ymls present in sites.yml
+
+vagrant@control:~/ansible$ ansible-playbook sites.yml --list-tag  ## list only the tags in all those ymls
+## only lists tags present in the ymls(control.yml tags: [ 'packages' ] - packages is the name of the tag .
+
+playbook: sites.yml
+
+  play #1 (all): all    TAGS: []
+      TASK TAGS: []
+
+  play #2 (control): control    TAGS: []
+      TASK TAGS: [packages]   - see here   
+
+  play #3 (loadbalancer): loadbalancer  TAGS: []
+      TASK TAGS: []
+....
+
+## in order to  execute those tags run the below command 
+vagrant@control:~/ansible$ ansible-playbook sites.yml --tags "packages"   # packages is the name of the tag
+
+
+######################
+vagrant@lb01:/etc/nginx/sites-enabled$ hostname
+lb01
+vagrant@lb01:/etc/nginx/sites-enabled$ ls -lrt
+total 0
+lrwxrwxrwx 1 root root 31 Nov 27 04:53 demo -> /etc/nginx/sites-available/demo
+lrwxrwxrwx 1 root root 32 Nov 27 10:04 myapp -> /etc/nginx/sites-available/myapp
+
+## here only one link is active .so find the active one and deaactive the inactive one 
+## go to vi roles/nginx/tasks/main.yml  add below 
+
+- name: get active sites
+  shell: ls -l /etc/nginx/sites-enabled
+  register: active
+
+- name: de-activate sites
+  file: path=/etc/nginx/sites-enabled/{{ item }} state=absent
+  with_items: active.stdout_lines
+  when: item not in sites 
+  notify: restart nginx
+
+## register is the module and active is the variable which holds the o/p of shell command ls -l /etc/nginx/sites-enabled
+## now it checks for items as  with_items: active.stdout_lines and any item not present in sites(i.e default/main.yml sites is dict)
+## and then make it state absent
+
+## now run  ansible-playbook lb.yml

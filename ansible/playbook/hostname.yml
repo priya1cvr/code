@@ -1,0 +1,6 @@
+# List the hostname
+---
+- hosts:  all
+  tasks: 
+  - command:  hostname
+  - command:  echo Hi

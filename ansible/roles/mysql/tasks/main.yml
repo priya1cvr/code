@@ -1,0 +1,25 @@
+---
+# tasks file for mysql
+- name: Install required packages
+  apt: name={{ item }} state=present update_cache=yes
+  with_items:
+    - python-mysqldb
+
+- name: Install mysql package
+  apt: name=mysql-server state=present update_cache=yes
+
+- name: Ensure mysql is started
+  service: name=mysql state=started enabled=yes
+
+- name: ensure mysql listening on all ports
+  lineinfile: dest=/etc/mysql/my.cnf regexp=^bind-address line="bind-address = {{ansible_eth1.ipv4.address}}"
+  notify: restart mysql
+
+- name: create demo database
+  mysql_db: name=demo state=present
+
+- name: create database parameterized 
+  mysql_db: name={{ db_name }} state=present 
+
+- name: create database user
+  mysql_user: name={{ db_user_name }} password={{ db_user_pass }} priv={{ db_name }}.*:ALL host={{ db_user_host }} state=present

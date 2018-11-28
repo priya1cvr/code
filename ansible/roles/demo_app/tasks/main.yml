@@ -1,0 +1,28 @@
+---
+# tasks file for demo_app
+- name: Install webserver components
+  apt: name={{ item }} state=present update_cache=yes
+  with_items:
+    - python-pip
+    - python-virtualenv
+    - python-mysqldb
+
+- name: copy demo app to webserver
+  copy: src=demo/app/ dest=/var/www/demo mode=0755
+  notify: restart apache2
+
+- name: copy apache virtual host config
+  copy: src=demo/demo.conf dest=/etc/apache2/sites-available mode=0644
+  notify: restart apache2
+
+- name: deactivate default apache site
+  file: path=/etc/apache2/sites-enabled/000-default.conf state=absent
+  notify: restart apache2
+
+- name: activate default apache site
+  file: src=/etc/apache2/sites-available/demo.conf dest=/etc/apache2/sites-enabled/demo.conf state=link
+  notify: restart apache2
+
+- name: setup python virtualenv for the flask app
+  pip: requirements=/var/www/demo/requirements.txt virtualenv=/var/www/demo/.venv
+  notify: restart apache2

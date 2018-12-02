@@ -16,13 +16,13 @@ public class Queue {
 	
 	//function to see queue full
 	//Queue is full when size equals capacity 
-	boolean isFull(Queue que) {
+	public boolean isFull(Queue que) {
 		return(que.size == que.capacity);
 	}
 	
 	//function to see queue is empty 
 	//queue is empty when size is 0
-	boolean isEmpty(Queue que) {
+	public boolean isEmpty(Queue que) {
 		return (que.size == 0);
 	}
 	

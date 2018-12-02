@@ -1,0 +1,28 @@
+package graphs;
+
+import graphs.GraphAdjacencyList2.*;
+
+public class BreadthFirstSearch {
+	String color;
+	int distance ,parent;
+	int restVertices[] ;
+	
+	BreadthFirstSearch(Graph graph,int source){
+		 this.color ="white";
+		 this.distance =999 ; //set some higher distance her infinity represented by 999
+		 this.parent = -1 ; // Nil represented by -1 
+		 restVertices =new int[graph.v-1];
+		 
+		for(int v =1 ,j=0 ;  j < graph.v-1 && graph.v != source; v++,j++) {
+				this.restVertices[j] =v;
+		}
+		for(int i=0;i<restVertices.length ; i++) {
+				System.out.println(restVertices[i]);
+		}
+	}
+	
+	static void BreadthFirst(Graph graph ,int source) {
+	
+	}
+	
+}

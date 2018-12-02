@@ -1,0 +1,12 @@
+package graphs;
+
+import graphs.GraphAdjacencyList2.Graph;
+
+public class GraphAdjacencyList2Main {
+	
+	public static void main(String[] args) {
+	int v =5;
+	Graph graph = new Graph(v);
+	addEdge(graph,0,1);
+	}
+}

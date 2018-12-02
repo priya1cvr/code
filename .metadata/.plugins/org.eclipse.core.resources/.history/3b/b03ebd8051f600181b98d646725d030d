@@ -1,0 +1,66 @@
+package graphs;
+
+import java.util.Iterator;
+import java.util.LinkedList;
+import graphs.GraphAdjacencyList2.*;
+import queues.Queue;
+
+public  class BreadthFirstSearch {
+	String color;
+	int distance ,parent;
+	int restVertices[] ;
+	
+	public void otherVertices(Graph graph,int source){
+		 this.color ="white";
+		 this.distance =999 ; //set some higher distance her infinity represented by 999
+		 this.parent = -1 ; // Nil represented by -1 
+		 restVertices =new int[graph.v-1];
+		 
+		for(int v =1 ,j=0 ;  j < graph.v-1 && graph.v != source; v++,j++) {
+				this.restVertices[j] =v;
+		}
+	}
+	public  void sourceAttributes(int source){
+		this.color = "gray" ;
+		this.distance = 0;
+		this.parent = -1 ;
+	}
+	
+	public void BreadthFirst(Graph graph ,int source) {
+		//set the source attributes 
+		sourceAttributes(source);
+		otherVertices(graph,source);
+		
+		
+		boolean visited[] = new boolean[graph.v]; 
+		visited[source]=true; 
+		// Create a queue for BFS 
+        //LinkedList<Integer> queue = new LinkedList<Integer>();
+        Queue que = new Queue(graph.v);
+        Int bfsItems = new Int(graph.v);
+        	que.enqueue(source);
+        	while(!que.isEmpty(que)) {
+        		int u = que.dequeue();
+        		System.out.println("dequeued is "+ u);   
+        		bfsItems.enqueue(u);
+        		Iterator<Integer> i = graph.adjListArray[u].listIterator(); 
+        		
+        		//int p = i.next();
+        		
+        		System.out.println("=================");
+        		while(i.hasNext()) {
+        			int n = i.next(); 
+                    if (!visited[n]) { 
+                        visited[n] = true; 
+                        que.enqueue(n);
+                    } 
+        			
+        			}        			
+        		
+        		}
+        	for (int i=0;i<bfsItems.size() ; i++)
+        		System.out.println(bfsItems[i]);
+        	}
+	   	
+}	
+

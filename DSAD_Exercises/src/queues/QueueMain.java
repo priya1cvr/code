@@ -45,5 +45,7 @@ public class QueueMain {
 		System.out.println("front index of new item is :"+que.front);
 		System.out.println("rear index of new item is :"+que.rear);
 		System.out.println("Size  of queue is " +  que.size()); 
+		System.out.println("check queue is empty :" + que.isEmpty(que));
+		
 	}
 }

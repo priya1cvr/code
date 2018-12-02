@@ -1,0 +1,23 @@
+package graphs;
+
+import graphs.GraphAdjacencyList2.*;
+
+public class BreadthFirstSearch {
+	
+	static void BreadthFirst(Graph graph ,int source) {
+		//take all vertices except the source as source is starting point
+		int restVertices[] = new int[graph.v];
+		System.out.println(graph.v + "\n");
+		for(int v =1 ,j=0 ;  j < graph.v && graph.v != source; v++,j++) {
+			System.out.println(v);
+			restVertices[j] =graph.v;
+		}
+		System.out.println("\n" + restVertices.length + "\n");
+		 //print rest vertices 
+		for(int i=0;i<restVertices.length ; i++) {
+			System.out.println(restVertices[i]);
+		}
+			
+	}
+	
+}

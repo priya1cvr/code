@@ -9,9 +9,7 @@ import graphs.GraphAdjacencyList2.*;
 import queues.Queue;
 
 public  class BreadthFirstSearch {
-	String color;
-	int distance ,parent;
-	int restVertices[] ;
+	
 	List<Integer> bfsItems = new ArrayList<Integer>();
 	
 	
@@ -19,11 +17,8 @@ public  class BreadthFirstSearch {
 	public List<Integer> BreadthFirst(Graph graph ,int source) {
 		
 		boolean visited[] = new boolean[graph.v]; 
-		//bydefault visited is all false
-		/* 
-		for (int j =0;j<graph.v;j++)
-			System.out.println("visited " + visited[1]);
-		*/
+		//by default visited is all false
+		
 		visited[source]=true; 
 		// Create a queue for BFS 
         //LinkedList<Integer> queue = new LinkedList<Integer>();

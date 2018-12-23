@@ -10,7 +10,7 @@ import java.nio.file.Paths;
 
 public class BigScreenGraph {
 
-	void readActMovfile(String inputFile) throws IOException {
+	Graph  readActMovfile(String inputFile) throws IOException {
 		FileReader fr = new FileReader(inputFile);
 		BufferedReader br = new BufferedReader(fr);
 		String line;
@@ -25,9 +25,10 @@ public class BigScreenGraph {
 	        g.addNeighbor( tokens[0], tokens[2]);
 		}
 		br.close();
-		
+		/*
 		g.displayActMov();
 		System.out.println("\n");
+		
 		g.displayMoviesOfActor("aamir Khan");
 		g.displayMoviesOfActor("Sanjay Dutt");
 		g.displayMoviesOfActor("Sunil Dutt");
@@ -35,6 +36,9 @@ public class BigScreenGraph {
 		g.displayActorsOfMovie("MIB");
 		g.findMovieRelation("Dangal","PK");
 		g.findMovieRelation("Dangal","Sanju");
+		*/
+		return g;
+		
 	} 
 	
 	
@@ -44,7 +48,17 @@ public class BigScreenGraph {
 		//System.out.println(currentDir);
 		File file = new File("resources/movies.txt");
 		BigScreenGraph bsGraph = new BigScreenGraph();
-		bsGraph.readActMovfile(file.toString());
+		Graph g=bsGraph.readActMovfile(file.toString());
+		g.displayActMov();
+		System.out.println("\n");
+		
+		g.displayMoviesOfActor("aamir Khan");
+		g.displayMoviesOfActor("Sanjay Dutt");
+		g.displayMoviesOfActor("Sunil Dutt");
+		g.displayActorsOfMovie("sanju");
+		g.displayActorsOfMovie("MIB");
+		g.findMovieRelation("Dangal","PK");
+		g.findMovieRelation("Dangal","Sanju");
 
 	}
 

@@ -1,0 +1,18 @@
+package bigScreenGraph1;
+import java.util.LinkedList;
+
+
+public class GraphAdj {
+
+	class Edge{
+		String v;
+		public Edge(String v) {
+			this.v=v;
+		}
+		public String toString(){
+            return "(" + v + ")";
+        }
+	}
+	
+		 
+}

@@ -1,0 +1,20 @@
+package bigScreenGraph1;
+import java.util.LinkedList;
+
+public class GraphAdj {
+
+	static class Graph{
+		int v;
+		LinkedList<String> adjListArray[];
+		Graph(int v){
+			this.v = v;
+			//size of array defined as number of vertices 
+			adjListArray = new LinkedList[v];
+			
+			//create a new list for each vertex to store the adjacent nodes  
+			for (int i=0;i<v;i++) {
+				adjListArray[i] = new LinkedList<String>();
+			}			
+		}
+	}
+}

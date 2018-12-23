@@ -95,6 +95,8 @@ public class Graph {
 		if(flag==null)
 			System.out.println(node1+" and " + node2 +" has no common actor");
 	}
+	
+	
 
 	
 }

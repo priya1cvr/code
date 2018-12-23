@@ -1,0 +1,34 @@
+package bigScreenGraph1;
+
+import java.util.Iterator;
+
+
+public class DepthFirstSearch {
+
+	public void DepthFirst(Graph graph ,String source) {
+		boolean visited[] = new boolean[graph.v]; 
+		//by default visited is all false
+		
+		// Call the recursive helper function to print DFS traversal 
+        // starting from all vertices one by one 
+		for(int i=0;i<graph.v;i++) {
+			if(visited[i]==false) {
+				DepthFirstUtil(graph,i,visited);
+			}
+		}
+	}
+	public void DepthFirstUtil(Graph graph ,String v ,boolean visited[]) {
+		//mark the current node as visited and print it 
+		visited[v]=true;
+		System.out.println(v + "");
+		Iterator iterator = (Iterator) graph.adj.get(v);
+		//Repeat it for all the vertices adjacent to this vertex 
+		Iterator<Integer> i = graph.adjListArray[v].listIterator();
+		while(iterator.hasNext()) {
+			String n = iterator.next();
+			if(! visited[n])
+				DepthFirstUtil(graph,n,visited);
+		}
+	}
+	
+}

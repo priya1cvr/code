@@ -1,0 +1,10 @@
+package bigScreenGraph1;
+import java.util.LinkedList;
+
+public class GraphAdj {
+
+	static class Graph{
+		int v;
+		LinkedList<String> adjListArray[];
+	}
+}

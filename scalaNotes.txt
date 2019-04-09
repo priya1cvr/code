@@ -1,5 +1,6 @@
 https://www.journaldev.com/8958/scala-interview-questions-answers
 
+--Get Started 
 Scala is a Hybrid Functional (Object-Oriented and Functional) Programming JVM Language.
 Statically-Typed Language means that Type checking is done at compile-time by compiler, not at run-time.
 Examples:- Java, Scala, C, C++, Haskell etc.

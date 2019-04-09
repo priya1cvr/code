@@ -59,4 +59,4 @@ amc,amc matador (sw),15,8,304,150,3892,12.5,72,American
 buick,buick lesabre custom,13,8,350,155,4502,13.5,72,American
 chevrolet,chevrolet chevelle concours (sw),13,8,307,130,4098,14,72,American
 chevrolet,chevrolet impala,13,8,350,165,4274,12,72,American
-chevrolet,chevrolet vega,20,4,140,90,2408,19.5,72,American
+chevrolet,chevrolet vega,20,4,140,90,2408,19.5,72,American 

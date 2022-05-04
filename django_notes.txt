@@ -1,0 +1,29 @@
+Priyabrats-Air:bookr pbishwal$ python3 manage.py startapp reviews
+Priyabrats-Air:bookr pbishwal$ python3 manage.py migrate
+Priyabrats-Air:bookr pbishwal$ python3 manage.py makemigrations reviews
+Migrations for 'reviews':
+  reviews/migrations/0001_initial.py
+    - Create model Publisher
+
+The following command, when run in the shell or terminal, will show the status of model migrations throughout the project (run it from the folder where your manage. py file is stored):
+
+Priyabrats-Air:bookr pbishwal$ python3 manage.py showmigrations
+
+Next, let's understand how Django transforms a model into an actual database table. This can be understood by running the sqlmigrate command:
+
+Priyabrats-Air:bookr pbishwal$ python3 manage.py  sqlmigrate reviews 0001_initial
+BEGIN;
+--
+-- Create model Publisher
+--
+CREATE TABLE "reviews_publisher" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(50) NOT NULL, "website" varchar(200) NOT NULL, "email" varchar(254) NOT NULL);
+COMMIT;
+
+
+Since the migration script has already been created by executing makemigrations, let's now migrate the newly created model in the reviews app by executing the following command
+
+Priyabrats-Air:bookr pbishwal$ python3 manage.py  migrate reviews
+Operations to perform:
+  Apply all migrations: reviews
+Running migrations:
+  Applying reviews.0001_initial... OK

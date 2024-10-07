@@ -1,0 +1,33 @@
+import scala.io.Source
+import java.util.Properties
+
+def loadProperties(filePath: String): Properties = {
+  val properties = new Properties()
+  val source = Source.fromFile(filePath)
+  try {
+    properties.load(source.bufferedReader())
+  } finally {
+    source.close()
+  }
+  properties
+}
+
+val propertiesFilePath = "jbs_config.properties" // This matches the file name passed with --files
+val properties = loadProperties(propertiesFilePath)
+
+// Access the property
+val jbsEnv = properties.getProperty("jbs_env")
+println(s"JBS Environment: $jbsEnv")
+
+
+
+val hdfsFilePath = "hdfs:///path/to/jbs_config.properties"
+val source = Source.fromInputStream(new java.net.URI(hdfsFilePath).toURL.openStream())
+
+
+spark-submit \
+  --class your.main.class.name \
+  --master yarn \
+  --deploy-mode cluster \
+  --files /path/to/jbs_config.properties \
+  your-application.jar

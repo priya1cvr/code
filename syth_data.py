@@ -103,7 +103,24 @@ def generate_table_data(table_name, columns, num_rows=1000):
 
     df = spark.createDataFrame(data)
     return df
+    
+def get_schema_metadata(schema_name):
+    """
+    Fetches schema details for all tables in a Hive schema.
+    """
+    tables_df = spark.sql(f"SHOW TABLES IN {schema_name}").toPandas()
+    schema_metadata = {}
 
+    for table in tables_df['tableName']:
+        schema_query = f"DESCRIBE {schema_name}.{table}"
+        schema_df = spark.sql(schema_query).toPandas()
+
+        columns = [(row['col_name'], row['data_type']) for _, row in schema_df.iterrows()]
+        schema_metadata[table] = columns
+
+    return schema_metadata
+
+schema_metadata = get_schema_metadata("your_schema_name")
 def generate_schema_data(schema_name, num_rows=1000):
     """
     Generates synthetic data for all tables in a schema dynamically.

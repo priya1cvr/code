@@ -264,3 +264,139 @@ if __name__ == "__main__":
     table_name = "your_table_name"  # Change to actual table name in your database
     df = generate_table_data(table_name, num_rows=1000)
     df.show(truncate=False)
+
+#############################################################################################################
+
+import spacy
+import numpy as np
+import pandas as pd
+import random
+from pyspark.sql import SparkSession, Row
+from faker import Faker
+from fuzzywuzzy import process
+import re
+import html
+from datetime import datetime
+
+# Initialize Spark session
+spark = SparkSession.builder.appName("DynamicSyntheticDataGenerator").getOrCreate()
+
+# Load NLP model and Faker
+nlp = spacy.load("en_core_web_sm")
+fake = Faker()
+Faker.seed(42)  # Consistency across multiple runs
+
+# ========================== STEP 1: DYNAMICALLY EXTRACT SCHEMA METADATA ========================== #
+def get_schema_metadata(table_name):
+    """
+    Dynamically extracts schema metadata from a Hive/Delta table.
+    """
+    df = spark.read.table(table_name)  # Read from Hive/Delta
+    schema_metadata = {col_name: dtype for col_name, dtype in df.dtypes}
+    return schema_metadata
+
+# ========================== STEP 2: CLASSIFY COLUMN VALUES DYNAMICALLY ========================== #
+def classify_column_values(col_name, existing_data=None):
+    """
+    Dynamically classifies a column based on regex patterns and NLP.
+    """
+    col_name_cleaned = col_name.lower().replace("_", " ")
+
+    # Pattern-based classification
+    if re.match(r".*date.*", col_name_cleaned):
+        return "date"
+    elif re.match(r".*time.*", col_name_cleaned):
+        return "timestamp"
+    elif re.match(r".*comment.*|.*note.*|.*desc.*", col_name_cleaned):
+        return "comment"
+    elif re.match(r".*id.*|.*key.*|.*code.*", col_name_cleaned):
+        return "identifier"
+    elif re.match(r"^[A-Z]{2,}\d{3}.*", col_name):
+        return "pattern_alphanumeric"
+    elif re.match(r".*account.*|.*loan.*|.*depo.*", col_name_cleaned):
+        return "financial_code"
+    elif "name" in col_name_cleaned:
+        return "name"
+    elif "org" in col_name_cleaned or "company" in col_name_cleaned:
+        return "organization"
+
+    # NLP-based classification fallback
+    doc = nlp(col_name_cleaned)
+    for ent in doc.ents:
+        if ent.label_ in ["PERSON"]:
+            return "name"
+        elif ent.label_ in ["ORG"]:
+            return "organization"
+        elif ent.label_ in ["GPE", "LOC"]:
+            return "region"
+        elif ent.label_ in ["DATE"]:
+            return "date"
+
+    # Default if no match
+    return "unknown"
+
+# ========================== STEP 3: GENERATE SYNTHETIC VALUE BASED ON CLASSIFICATION ========================== #
+def generate_synthetic_value(col_name, existing_data=None):
+    """
+    Generates synthetic data based on column type with pattern retention.
+    """
+    inferred_category = classify_column_values(col_name, existing_data)
+
+    # Generate values based on identified types
+    if inferred_category == "name":
+        return fake.name()
+    elif inferred_category == "organization":
+        return fake.company()
+    elif inferred_category == "date":
+        return fake.date()
+    elif inferred_category == "timestamp":
+        return fake.date_time()
+    elif inferred_category == "comment":
+        return html.escape(fake.sentence() + " " + fake.paragraph())
+    elif inferred_category == "identifier":
+        return fake.uuid4()
+    elif inferred_category == "pattern_alphanumeric":
+        prefix = col_name[:3].upper()
+        suffix = str(random.randint(100, 999))
+        return f"{prefix}_{suffix}"
+    elif inferred_category == "financial_code":
+        return f"{col_name[:4].upper()}_{random.randint(100, 999)}"
+    elif inferred_category == "boolean":
+        return random.choice(["Y", "N"])
+    else:
+        return fake.word()
+
+# ========================== STEP 4: GENERATE SYNTHETIC DATA FOR A TABLE ========================== #
+def generate_table_data(table_name, partition_column=None, partition_value=None, num_rows=1000):
+    """
+    Generates synthetic data dynamically for an entire table using its schema.
+    Supports partitioning and retains uniqueness across runs.
+    """
+    schema = get_schema_metadata(table_name)
+    existing_categories = set(schema.keys())
+
+    data = []
+    for _ in range(num_rows):
+        row_data = {}
+
+        for col, dtype in schema.items():
+            # Preserve partitioning logic if applied
+            if col == partition_column and partition_value:
+                row_data[col] = partition_value
+            else:
+                row_data[col] = generate_synthetic_value(col, existing_categories)
+
+        data.append(Row(**row_data))
+
+    return spark.createDataFrame(data)
+
+# ========================== STEP 5: RUN SCRIPT ========================== #
+if __name__ == "__main__":
+    table_name = "your_table_name"  # Change to actual table name in Hive/Delta
+    partition_column = "ingestion_date"  # Optional partition column
+    partition_value = "2023-04-05"  # Optional partition value
+
+    # Generate data for partition or full table
+    df = generate_table_data(table_name, partition_column, partition_value, num_rows=1000)
+    df.show(truncate=False)
+

@@ -400,3 +400,144 @@ if __name__ == "__main__":
     df = generate_table_data(table_name, partition_column, partition_value, num_rows=1000)
     df.show(truncate=False)
 
+################################################### type 4################################################
+
+import spacy
+import re
+import random
+import html
+from faker import Faker
+from pyspark.sql import SparkSession, Row
+from datetime import datetime
+
+# Initialize Spark session
+spark = SparkSession.builder.appName("EnhancedSyntheticDataGenerator").getOrCreate()
+
+# Load NLP and Faker
+nlp = spacy.load("en_core_web_sm")
+fake = Faker()
+Faker.seed(42)  # Seed for consistent results across runs
+
+# ========================== STEP 1: EXTRACT SCHEMA METADATA ========================== #
+def get_schema_metadata(table_name):
+    """
+    Dynamically extracts schema metadata from a Hive/Delta table.
+    """
+    df = spark.read.table(table_name)
+    schema_metadata = {col_name: dtype for col_name, dtype in df.dtypes}
+    return schema_metadata
+
+# ========================== STEP 2: CLASSIFY COLUMN VALUES (PATTERN-BASED + NLP) ========================== #
+def classify_column_values(col_name, sample_value=None):
+    """
+    Dynamically classifies a column using regex patterns and NLP.
+    """
+    col_name_cleaned = col_name.lower().replace("_", " ")
+    
+    # Pattern-based classification
+    if re.match(r".*date.*", col_name_cleaned):
+        return "date"
+    elif re.match(r".*time.*", col_name_cleaned):
+        return "timestamp"
+    elif re.match(r".*comment.*|.*note.*|.*desc.*", col_name_cleaned):
+        return "comment"
+    elif re.match(r".*id.*|.*key.*|.*code.*", col_name_cleaned):
+        return "identifier"
+    elif re.match(r"^[A-Z]{2,}\d{3}.*", sample_value or ""):
+        return "pattern_alphanumeric"
+    elif re.match(r".*account.*|.*loan.*|.*depo.*", col_name_cleaned):
+        return "financial_code"
+    elif re.match(r".*workspace.*|.*region.*|.*country.*", col_name_cleaned):
+        return "region"
+    elif "name" in col_name_cleaned:
+        return "name"
+    elif "org" in col_name_cleaned or "company" in col_name_cleaned:
+        return "organization"
+
+    # NLP-based classification fallback
+    doc = nlp(col_name_cleaned)
+    for ent in doc.ents:
+        if ent.label_ in ["PERSON"]:
+            return "name"
+        elif ent.label_ in ["ORG"]:
+            return "organization"
+        elif ent.label_ in ["GPE", "LOC"]:
+            return "region"
+        elif ent.label_ in ["DATE"]:
+            return "date"
+
+    # Default if no match
+    return "unknown"
+
+# ========================== STEP 3: GENERATE SYNTHETIC VALUE BASED ON CLASSIFICATION ========================== #
+def generate_synthetic_value(col_name, sample_value=None):
+    """
+    Generates synthetic data dynamically while retaining pattern consistency.
+    """
+    inferred_category = classify_column_values(col_name, sample_value)
+
+    # Pattern-based or specific types
+    if inferred_category == "name":
+        return fake.name()
+    elif inferred_category == "organization":
+        return fake.company()
+    elif inferred_category == "date":
+        return fake.date()
+    elif inferred_category == "timestamp":
+        return fake.date_time().strftime("%Y-%m-%d %H:%M:%S")
+    elif inferred_category == "comment":
+        return html.escape(fake.sentence() + " " + fake.paragraph())
+    elif inferred_category == "identifier":
+        return fake.uuid4()
+    elif inferred_category == "pattern_alphanumeric" and sample_value:
+        prefix = re.match(r"([A-Z]+_\w+)", sample_value)
+        suffix = str(random.randint(100, 999))
+        return f"{prefix.group(1) if prefix else 'XYZ_PRQ'}_{suffix}"
+    elif inferred_category == "financial_code" and sample_value:
+        prefix = sample_value.split("_")[0]
+        return f"{prefix}_{random.randint(100, 999)}"
+    elif inferred_category == "region" and sample_value:
+        prefix = sample_value.split("_")[-1]
+        return f"XYZ_PRQ_{prefix}"
+    elif inferred_category == "boolean":
+        return random.choice(["Y", "N"])
+    elif inferred_category == "unknown" and sample_value:
+        return sample_value  # Fallback to existing value
+    else:
+        return fake.word()
+
+# ========================== STEP 4: GENERATE SYNTHETIC DATA FOR A TABLE ========================== #
+def generate_table_data(table_name, partition_column=None, partition_value=None, num_rows=1000):
+    """
+    Generates synthetic data dynamically for an entire table while preserving column patterns.
+    Supports partitioning and retains uniqueness across runs.
+    """
+    schema = get_schema_metadata(table_name)
+    df_sample = spark.read.table(table_name).limit(1).toPandas()
+
+    data = []
+    for _ in range(num_rows):
+        row_data = {}
+
+        for col, dtype in schema.items():
+            sample_value = df_sample[col].iloc[0] if col in df_sample.columns else None
+
+            # Preserve partitioning logic if applied
+            if col == partition_column and partition_value:
+                row_data[col] = partition_value
+            else:
+                row_data[col] = generate_synthetic_value(col, sample_value)
+
+        data.append(Row(**row_data))
+
+    return spark.createDataFrame(data)
+
+# ========================== STEP 5: RUN SYNTHETIC DATA GENERATION ========================== #
+if __name__ == "__main__":
+    table_name = "your_table_name"  # Change to your table name
+    partition_column = "ingestion_date"  # Optional partition column
+    partition_value = "2023-04-05"  # Optional partition value
+
+    # Generate synthetic data for partition or full table
+    df = generate_table_data(table_name, partition_column, partition_value, num_rows=1000)
+    df.show(truncate=False)

@@ -1,0 +1,116 @@
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hdfs.DFSInotifyEventInputStream
+import org.apache.hadoop.hdfs.client.HdfsAdmin
+import org.apache.hadoop.hdfs.inotify.{Event, EventBatch}
+import java.net.URI
+import scala.util.{Failure, Success, Try}
+
+object HDFSInotifyMonitor {
+
+  // =========================== CONFIGURATION =========================== //
+  val hdfsUri = "hdfs://namenode:8020"
+  val monitorPath = "/user/hive/warehouse/input_data"
+  val pollIntervalMillis: Long = 1000
+  val maxRunDurationMillis: Long = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+  // =========================== PROCESS HDFS EVENT =========================== //
+  def processHdfsEvent(event: Event): Unit = {
+    event match {
+      case createEvent: Event.Create =>
+        println(s"File created: ${createEvent.getPath}")
+        // Trigger Spark job or ETL pipeline
+      case appendEvent: Event.Append =>
+        println(s"Data appended to: ${appendEvent.getPath}")
+      case closeEvent: Event.Close =>
+        println(s"File closed: ${closeEvent.getPath}")
+      case renameEvent: Event.Rename =>
+        println(s"File renamed from ${renameEvent.getSrcPath} to ${renameEvent.getDstPath}")
+      case deleteEvent: Event.Delete =>
+        println(s"File deleted: ${deleteEvent.getPath}")
+      case _ =>
+        println("Unknown event type")
+    }
+  }
+
+  // =========================== MONITOR HDFS PATH =========================== //
+  def monitorHdfsPath(): Unit = {
+    val conf = new Configuration()
+    val hdfsAdmin = new HdfsAdmin(new URI(hdfsUri), conf)
+    val eventStream: DFSInotifyEventInputStream = hdfsAdmin.getInotifyEventStream
+
+    // Get the latest transaction ID
+    val startTxId = eventStream.getCurrentTxId
+    println(s"Starting from transaction ID: $startTxId")
+
+    // Record start time
+    val startTime = System.currentTimeMillis()
+
+    // Loop until duration exceeds defined time limit
+    while ((System.currentTimeMillis() - startTime) < maxRunDurationMillis) {
+      Try(eventStream.poll(pollIntervalMillis)) match {
+        case Success(eventBatch: EventBatch) if eventBatch != null =>
+          println(s"Processing batch with TxID: ${eventBatch.getTxid}")
+          eventBatch.getEvents.foreach(processHdfsEvent)
+        case Failure(exception) =>
+          println(s"Error while processing events: ${exception.getMessage}")
+          Thread.sleep(2000) // Sleep before retry
+        case _ =>
+          // Sleep briefly to avoid CPU overuse when no events occur
+          Thread.sleep(500)
+      }
+    }
+
+    // =========================== CLEAN UP =========================== //
+    println("Job execution time exceeded, exiting gracefully...")
+    closeResources(eventStream)
+  }
+
+  // =========================== CLEAN UP RESOURCES =========================== //
+  def closeResources(eventStream: DFSInotifyEventInputStream): Unit = {
+    if (eventStream != null) {
+      try {
+        eventStream.close()
+        println("Event stream closed successfully.")
+      } catch {
+        case e: Exception =>
+          println(s"Error closing event stream: ${e.getMessage}")
+      }
+    }
+  }
+
+  // =========================== MAIN METHOD =========================== //
+  def main(args: Array[String]): Unit = {
+    println("Starting HDFS Inotify Monitor...")
+    monitorHdfsPath()
+  }
+}
+
+
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.apache.hadoop.hdfs.inotify.Event
+
+class HDFSInotifyMonitorTest extends AnyFunSuite with Matchers {
+
+  test("processHdfsEvent should handle create event correctly") {
+    val createEvent = new Event.Create("/path/to/file", false, "", 0, 0, null, null)
+    val output = captureOutput {
+      HDFSInotifyMonitor.processHdfsEvent(createEvent)
+    }
+    output should include("File created: /path/to/file")
+  }
+
+  test("monitorHdfsPath should exit after configured duration") {
+    val output = captureOutput {
+      HDFSInotifyMonitor.main(Array())
+    }
+    output should include("Job execution time exceeded, exiting gracefully...")
+  }
+
+  // Helper method to capture console output
+  def captureOutput(block: => Unit): String = {
+    val stream = new java.io.ByteArrayOutputStream()
+    Console.withOut(stream)(block)
+    stream.toString
+  }
+}

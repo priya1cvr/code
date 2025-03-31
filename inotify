@@ -114,3 +114,122 @@ class HDFSInotifyMonitorTest extends AnyFunSuite with Matchers {
     stream.toString
   }
 }
+
+==================================================================
+
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
+import scala.concurrent.duration._
+
+case class CheckDirectory()
+case class FileDetected(filePath: String)
+
+// =========================
+// 1. FileWatcher Actor
+// =========================
+class FileWatcherActor(directoryPath: String, workerActor: ActorRef) extends Actor {
+  val hadoopConf = new Configuration()
+  val fs: FileSystem = FileSystem.get(hadoopConf)
+  var lastSeenFiles: Set[String] = Set()
+
+  import context.dispatcher
+  // Schedule to run check every 10 seconds
+  context.system.scheduler.scheduleWithFixedDelay(0.seconds, 10.seconds, self, CheckDirectory())
+
+  def receive: Receive = {
+    case CheckDirectory() =>
+      val path = new Path(directoryPath)
+      if (fs.exists(path)) {
+        val fileStatus: Array[FileStatus] = fs.listStatus(path)
+        val currentFiles = fileStatus.map(_.getPath.toString).toSet
+
+        // Detect new files
+        val newFiles = currentFiles.diff(lastSeenFiles)
+        newFiles.foreach { file =>
+          println(s"New file detected: $file")
+          workerActor ! FileDetected(file)
+        }
+
+        // Update the last seen file list
+        lastSeenFiles = currentFiles
+      } else {
+        println(s"Directory does not exist: $directoryPath")
+      }
+  }
+}
+
+// =========================
+// 2. Worker Actor (File Processor)
+// =========================
+class FileProcessorActor extends Actor {
+  def receive: Receive = {
+    case FileDetected(filePath) =>
+      println(s"Processing file: $filePath")
+      // Process the file (e.g., Spark job or ETL)
+      processFile(filePath)
+  }
+
+  def processFile(filePath: String): Unit = {
+    // Implement the file processing logic here
+    println(s"File processed successfully: $filePath")
+  }
+}
+
+// =========================
+// 3. Main Application to Start Actors
+// =========================
+object HdfsFileMonitorApp extends App {
+  val system: ActorSystem = ActorSystem("HdfsFileMonitorSystem")
+
+  val workerActor: ActorRef = system.actorOf(Props[FileProcessorActor], "fileProcessorActor")
+  val directoryPath = "hdfs://namenode:8020/user/hdfs/input"
+
+  val fileWatcherActor: ActorRef = system.actorOf(Props(new FileWatcherActor(directoryPath, workerActor)), "fileWatcherActor")
+}
+
+
+libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-actor" % "2.6.20",
+  "com.typesafe.akka" %% "akka-testkit" % "2.6.20" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.14" % Test,
+  "org.apache.hadoop" % "hadoop-common" % "3.2.2"
+)
+
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+
+class HdfsFileMonitorTest
+    extends TestKit(ActorSystem("HdfsFileMonitorTestSystem"))
+    with ImplicitSender
+    with AnyWordSpecLike
+    with BeforeAndAfterAll {
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
+  "FileWatcherActor" should {
+    "detect new files and notify FileProcessorActor" in {
+      val workerActor: ActorRef = TestActorRef(new FileProcessorActor)
+      val directoryPath = "hdfs://namenode:8020/user/hdfs/input"
+
+      val fileWatcherActor = TestActorRef(new FileWatcherActor(directoryPath, workerActor))
+      fileWatcherActor ! CheckDirectory()
+
+      expectNoMessage()
+    }
+  }
+
+  "FileProcessorActor" should {
+    "process the detected file correctly" in {
+      val fileProcessorActor = TestActorRef(new FileProcessorActor)
+      val filePath = "hdfs://namenode:8020/user/hdfs/input/test-file.txt"
+
+      fileProcessorActor ! FileDetected(filePath)
+      expectNoMessage()
+    }
+  }
+}

@@ -308,5 +308,18 @@ if __name__ == "__main__":
 
  
 python3 /project/watcher/file_watcher.py --env dev
+
+Architecture
+Watcher detects file
+        ↓
+Watcher submits spark-submit
+        ↓
+Scala Spark program starts
+        ↓
+Spark inserts STARTED into audit table
+        ↓
+Spark processes file
+        ↓
+Spark updates SUCCESS / FAILED
 '''  
 

@@ -1,0 +1,1764 @@
+hive-iceberg-archiver/
+│
+├── build.sbt
+│
+├── project/
+│   └── build.properties
+│
+└── src/
+    └── main/
+        └── scala/
+            └── com/
+                └── company/
+                    └── archive/
+                        │
+                        ├── HiveToIcebergArchiveApp.scala
+                        │
+                        ├── model/
+                        │   ├── ArchiveConfig.scala
+                        │   ├── HivePartition.scala
+                        │   └── ValidationResult.scala
+                        │
+                        ├── config/
+                        │   └── ConfigLoader.scala
+                        │
+                        ├── hive/
+                        │   └── HivePartitionService.scala
+                        │
+                        ├── iceberg/
+                        │   └── IcebergTableService.scala
+                        │
+                        ├── archive/
+                        │   ├── PartitionSelector.scala
+                        │   ├── ArchiveValidator.scala
+                        │   └── ArchiveService.scala
+                        │
+                        └── audit/
+                            └── ManifestService.scala
+
+Each class has one responsibility:
+Class	Responsibility
+ArchiveConfig.scala	Configuration models
+HivePartition.scala	Represents a Hive leaf partition
+ValidationResult.scala	Validation result model
+ConfigLoader.scala	Read JSON from SparkFiles + resolve defaults
+HivePartitionService.scala	SHOW PARTITIONS, parse partitions, drop partitions
+IcebergTableService.scala	Create target + append data
+PartitionSelector.scala	Decide which reporting dates to archive
+ArchiveValidator.scala	Compare Hive vs Iceberg
+ArchiveService.scala	Orchestrate one table
+ManifestService.scala	Audit/control table
+HiveToIcebergArchiveApp.scala	Application entry point
+
+2. archive_tables.json
+/opt/company/hive-iceberg-archiver/config/archive_tables.json
+{
+  "configVersion": 1,
+
+  "globalDefaults": {
+    "maxHiveLeafPartitions": 5000,
+    "targetHiveLeafPartitions": 4500,
+
+    "maxReportingDatesPerRun": 30,
+    "maxLeafPartitionsPerRun": 1000,
+
+    "minAgeDays": 7,
+
+    "icebergPartitionTransform": "year",
+    "reportingDateFormat": "yyyy-MM-dd",
+
+    "targetFileSizeBytes": 134217728,
+
+    "allowSchemaEvolution": false,
+
+    "createTargetIfMissing": true,
+    "dropSourceAfterValidation": true,
+    "dryRun": false,
+
+    "timeZone": "Asia/Kolkata",
+
+    "manifestTable": "iceberg_admin.archive_manifest"
+  },
+
+  "execution": {
+    "continueOnTableFailure": true
+  },
+
+  "tables": [
+
+    {
+      "name": "sales",
+      "enabled": true,
+
+      "sourceTable": "hive_db.sales",
+      "targetTable": "iceberg_db.sales_archive",
+
+      "hivePartitionColumns": [
+        "reporting_date"
+      ],
+
+      "archiveDateColumn": "reporting_date"
+    },
+
+    {
+      "name": "customer",
+      "enabled": true,
+
+      "sourceTable": "hive_db.customer",
+      "targetTable": "iceberg_db.customer_archive",
+
+      "hivePartitionColumns": [
+        "reporting_date",
+        "country"
+      ],
+
+      "archiveDateColumn": "reporting_date"
+    },
+
+    {
+      "name": "transactions",
+      "enabled": true,
+
+      "sourceTable": "hive_db.transactions",
+      "targetTable": "iceberg_db.transactions_archive",
+
+      "hivePartitionColumns": [
+        "reporting_date",
+        "country",
+        "file_type"
+      ],
+
+      "archiveDateColumn": "reporting_date"
+    },
+
+    {
+      "name": "payments",
+      "enabled": true,
+
+      "sourceTable": "hive_db.payments",
+      "targetTable": "iceberg_db.payments_archive",
+
+      "hivePartitionColumns": [
+        "reporting_date",
+        "country",
+        "file_type",
+        "source_system"
+      ],
+
+      "archiveDateColumn": "reporting_date"
+    },
+
+    {
+      "name": "large_transactions",
+      "enabled": true,
+
+      "sourceTable": "hive_db.large_transactions",
+      "targetTable": "iceberg_db.large_transactions_archive",
+
+      "hivePartitionColumns": [
+        "reporting_date",
+        "country",
+        "file_type"
+      ],
+
+      "archiveDateColumn": "reporting_date",
+
+      "maxHiveLeafPartitions": 10000,
+      "targetHiveLeafPartitions": 9000,
+
+      "maxReportingDatesPerRun": 10,
+      "maxLeafPartitionsPerRun": 500,
+
+      "minAgeDays": 14
+    },
+
+    {
+      "name": "future_table",
+      "enabled": false,
+
+      "sourceTable": "hive_db.future_table",
+      "targetTable": "iceberg_db.future_table_archive",
+
+      "hivePartitionColumns": [
+        "reporting_date",
+        "country"
+      ],
+
+      "archiveDateColumn": "reporting_date"
+    }
+  ]
+}
+
+3. model/ArchiveConfig.scala
+package com.company.archive.model
+
+case class GlobalDefaults(
+    maxHiveLeafPartitions: Long,
+    targetHiveLeafPartitions: Long,
+
+    maxReportingDatesPerRun: Int,
+    maxLeafPartitionsPerRun: Int,
+
+    minAgeDays: Int,
+
+    icebergPartitionTransform: String,
+    reportingDateFormat: String,
+
+    targetFileSizeBytes: Long,
+
+    allowSchemaEvolution: Boolean,
+
+    createTargetIfMissing: Boolean,
+    dropSourceAfterValidation: Boolean,
+    dryRun: Boolean,
+
+    timeZone: String,
+
+    manifestTable: String
+)
+
+case class ExecutionConfig(
+    continueOnTableFailure: Boolean
+)
+
+case class TableConfigRaw(
+    name: String,
+    enabled: Option[Boolean],
+
+    sourceTable: String,
+    targetTable: String,
+
+    hivePartitionColumns: Seq[String],
+
+    archiveDateColumn: String,
+
+    maxHiveLeafPartitions: Option[Long],
+    targetHiveLeafPartitions: Option[Long],
+
+    maxReportingDatesPerRun: Option[Int],
+    maxLeafPartitionsPerRun: Option[Int],
+
+    minAgeDays: Option[Int],
+
+    icebergPartitionTransform: Option[String],
+    reportingDateFormat: Option[String],
+
+    targetFileSizeBytes: Option[Long],
+
+    allowSchemaEvolution: Option[Boolean],
+
+    createTargetIfMissing: Option[Boolean],
+    dropSourceAfterValidation: Option[Boolean],
+    dryRun: Option[Boolean]
+)
+
+case class ArchiveConfigFile(
+    configVersion: Int,
+    globalDefaults: GlobalDefaults,
+    execution: ExecutionConfig,
+    tables: Seq[TableConfigRaw]
+)
+
+case class TableConfig(
+    name: String,
+    enabled: Boolean,
+
+    sourceTable: String,
+    targetTable: String,
+
+    hivePartitionColumns: Seq[String],
+    archiveDateColumn: String,
+
+    maxHiveLeafPartitions: Long,
+    targetHiveLeafPartitions: Long,
+
+    maxReportingDatesPerRun: Int,
+    maxLeafPartitionsPerRun: Int,
+
+    minAgeDays: Int,
+
+    icebergPartitionTransform: String,
+    reportingDateFormat: String,
+
+    targetFileSizeBytes: Long,
+
+    allowSchemaEvolution: Boolean,
+
+    createTargetIfMissing: Boolean,
+    dropSourceAfterValidation: Boolean,
+    dryRun: Boolean,
+
+    timeZone: String,
+    manifestTable: String
+)
+
+case class ResolvedConfig(
+    tables: Seq[TableConfig],
+    execution: ExecutionConfig
+)
+
+4. model/HivePartition.scala
+package com.company.archive.model
+
+import java.time.LocalDate
+
+case class HivePartition(
+    rawSpec: String,
+    values: Map[String, String],
+    reportingDate: LocalDate
+) {
+
+  def canonicalKey(
+      partitionColumns: Seq[String]
+  ): String = {
+
+    partitionColumns
+      .map { column =>
+        s"$column=${values(column)}"
+      }
+      .mkString("/")
+  }
+}
+
+5. model/ValidationResult.scala
+package com.company.archive.model
+
+import java.time.LocalDate
+
+case class ValidationResult(
+    reportingDate: LocalDate,
+
+    sourceRows: Long,
+    targetRows: Long,
+
+    sourceLeafPartitions: Int,
+    targetLeafPartitions: Int,
+
+    status: String
+)
+
+Statuses:
+PENDING
+ALREADY_ARCHIVED
+MISMATCH
+
+6. config/ConfigLoader.scala
+This is where the --files requirement is handled.
+Once --files localizes the file, Spark exposes its localized path through SparkFiles.get.
+package com.company.archive.config
+
+import com.company.archive.model._
+
+import org.apache.spark.SparkFiles
+import org.apache.spark.sql.SparkSession
+
+object ConfigLoader {
+
+  def load(
+      spark: SparkSession,
+      fileName: String
+  ): ResolvedConfig = {
+
+    val localizedPath =
+      SparkFiles.get(fileName)
+
+    println(
+      s"Loading configuration from: $localizedPath"
+    )
+
+    import spark.implicits._
+
+    val config =
+      spark.read
+        .option("multiline", "true")
+        .json(localizedPath)
+        .as[ArchiveConfigFile]
+        .collect()
+        .head
+
+    require(
+      config.configVersion == 1,
+      s"Unsupported configVersion: ${config.configVersion}"
+    )
+
+    val resolvedTables =
+      config.tables.map(
+        resolveTable(
+          _,
+          config.globalDefaults
+        )
+      )
+
+    ResolvedConfig(
+      tables = resolvedTables,
+      execution = config.execution
+    )
+  }
+
+
+  private def resolveTable(
+      raw: TableConfigRaw,
+      defaults: GlobalDefaults
+  ): TableConfig = {
+
+    TableConfig(
+      name =
+        raw.name,
+
+      enabled =
+        raw.enabled.getOrElse(true),
+
+      sourceTable =
+        raw.sourceTable,
+
+      targetTable =
+        raw.targetTable,
+
+      hivePartitionColumns =
+        raw.hivePartitionColumns,
+
+      archiveDateColumn =
+        raw.archiveDateColumn,
+
+      maxHiveLeafPartitions =
+        raw.maxHiveLeafPartitions
+          .getOrElse(
+            defaults.maxHiveLeafPartitions
+          ),
+
+      targetHiveLeafPartitions =
+        raw.targetHiveLeafPartitions
+          .getOrElse(
+            defaults.targetHiveLeafPartitions
+          ),
+
+      maxReportingDatesPerRun =
+        raw.maxReportingDatesPerRun
+          .getOrElse(
+            defaults.maxReportingDatesPerRun
+          ),
+
+      maxLeafPartitionsPerRun =
+        raw.maxLeafPartitionsPerRun
+          .getOrElse(
+            defaults.maxLeafPartitionsPerRun
+          ),
+
+      minAgeDays =
+        raw.minAgeDays
+          .getOrElse(
+            defaults.minAgeDays
+          ),
+
+      icebergPartitionTransform =
+        raw.icebergPartitionTransform
+          .getOrElse(
+            defaults.icebergPartitionTransform
+          ),
+
+      reportingDateFormat =
+        raw.reportingDateFormat
+          .getOrElse(
+            defaults.reportingDateFormat
+          ),
+
+      targetFileSizeBytes =
+        raw.targetFileSizeBytes
+          .getOrElse(
+            defaults.targetFileSizeBytes
+          ),
+
+      allowSchemaEvolution =
+        raw.allowSchemaEvolution
+          .getOrElse(
+            defaults.allowSchemaEvolution
+          ),
+
+      createTargetIfMissing =
+        raw.createTargetIfMissing
+          .getOrElse(
+            defaults.createTargetIfMissing
+          ),
+
+      dropSourceAfterValidation =
+        raw.dropSourceAfterValidation
+          .getOrElse(
+            defaults.dropSourceAfterValidation
+          ),
+
+      dryRun =
+        raw.dryRun
+          .getOrElse(
+            defaults.dryRun
+          ),
+
+      timeZone =
+        defaults.timeZone,
+
+      manifestTable =
+        defaults.manifestTable
+    )
+  }
+}
+
+7. hive/HivePartitionService.scala
+This class knows nothing about Iceberg.
+It only knows how to interact with Hive.
+package com.company.archive.hive
+
+import com.company.archive.model._
+
+import org.apache.spark.sql.SparkSession
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+class HivePartitionService(
+    spark: SparkSession
+) {
+
+  def listPartitions(
+      config: TableConfig
+  ): Seq[HivePartition] = {
+
+    spark.sql(
+      s"SHOW PARTITIONS ${config.sourceTable}"
+    )
+      .collect()
+      .map { row =>
+
+        val rawSpec =
+          row.getString(0)
+
+        val values =
+          parsePartitionSpec(
+            rawSpec
+          )
+
+        val reportingDate =
+          LocalDate.parse(
+            values(
+              config.archiveDateColumn
+            ),
+            DateTimeFormatter.ofPattern(
+              config.reportingDateFormat
+            )
+          )
+
+        HivePartition(
+          rawSpec =
+            rawSpec,
+
+          values =
+            values,
+
+          reportingDate =
+            reportingDate
+        )
+      }
+  }
+
+
+  def dropPartitions(
+      config: TableConfig,
+      partitions: Seq[HivePartition]
+  ): Unit = {
+
+    partitions.foreach { partition =>
+
+      val partitionSpec =
+        config.hivePartitionColumns
+          .map { column =>
+
+            val value =
+              partition.values(column)
+                .replace(
+                  "'",
+                  "''"
+                )
+
+            s"$column='$value'"
+          }
+          .mkString(", ")
+
+      println(
+        s"Dropping Hive partition: " +
+        partition.rawSpec
+      )
+
+      spark.sql(
+        s"""
+           |ALTER TABLE ${config.sourceTable}
+           |DROP IF EXISTS PARTITION (
+           |  $partitionSpec
+           |)
+           |""".stripMargin
+      )
+    }
+  }
+
+
+  private def parsePartitionSpec(
+      rawSpec: String
+  ): Map[String, String] = {
+
+    rawSpec
+      .split("/")
+      .map { token =>
+
+        val index =
+          token.indexOf("=")
+
+        require(
+          index > 0,
+          s"Invalid Hive partition: $rawSpec"
+        )
+
+        val key =
+          token.substring(
+            0,
+            index
+          )
+
+        val value =
+          token.substring(
+            index + 1
+          )
+
+        key -> value
+      }
+      .toMap
+  }
+}
+
+8. archive/PartitionSelector.scala
+Again, one responsibility:
+Given all Hive partitions, decide which complete reporting_dates should move.
+package com.company.archive.archive
+
+import com.company.archive.model._
+
+import java.time.{LocalDate, ZoneId}
+
+class PartitionSelector {
+
+  def select(
+      partitions: Seq[HivePartition],
+      config: TableConfig
+  ): Seq[HivePartition] = {
+
+    val today =
+      LocalDate.now(
+        ZoneId.of(config.timeZone)
+      )
+
+    val cutoff =
+      today.minusDays(
+        config.minAgeDays
+      )
+
+    val eligible =
+      partitions
+        .filter { partition =>
+          !partition.reportingDate.isAfter(cutoff)
+        }
+        .sortBy(
+          _.reportingDate
+        )
+
+    val grouped =
+      eligible.groupBy(
+        _.reportingDate
+      )
+
+    val requiredLeafPartitions =
+      math.max(
+        0,
+        partitions.size -
+        config.targetHiveLeafPartitions
+      )
+
+    if (
+      requiredLeafPartitions == 0
+    ) {
+      return Seq.empty
+    }
+
+    val dates =
+      grouped.keys.toSeq.sorted
+
+    var selectedDates =
+      Vector.empty[LocalDate]
+
+    var selectedLeafCount =
+      0
+
+    var i = 0
+
+    while (
+      i < dates.size &&
+      selectedDates.size <
+      config.maxReportingDatesPerRun &&
+      selectedLeafCount <
+      requiredLeafPartitions
+    ) {
+
+      val date =
+        dates(i)
+
+      val leafCount =
+        grouped(date).size
+
+      val exceedsLimit =
+        selectedLeafCount +
+        leafCount >
+        config.maxLeafPartitionsPerRun
+
+      if (
+        selectedDates.isEmpty &&
+        leafCount >
+        config.maxLeafPartitionsPerRun
+      ) {
+
+        throw new IllegalStateException(
+          s"reporting_date=$date contains " +
+          s"$leafCount leaf partitions, exceeding " +
+          s"maxLeafPartitionsPerRun=" +
+          config.maxLeafPartitionsPerRun
+        )
+      }
+
+      if (!exceedsLimit) {
+
+        selectedDates =
+          selectedDates :+
+          date
+
+        selectedLeafCount +=
+          leafCount
+      }
+
+      i += 1
+    }
+
+    selectedDates
+      .flatMap(
+        grouped
+      )
+  }
+}
+
+9. iceberg/IcebergTableService.scala
+This class handles only the Iceberg table.
+
+package com.company.archive.iceberg
+
+import com.company.archive.model.TableConfig
+
+import org.apache.spark.sql.{DataFrame, SparkSession}
+
+class IcebergTableService(
+    spark: SparkSession
+) {
+
+  def ensureTargetTable(
+      config: TableConfig
+  ): Unit = {
+
+    if (!config.createTargetIfMissing) {
+      return
+    }
+
+    val transform =
+      config.icebergPartitionTransform
+
+    val partitionExpression =
+      s"$transform(${config.archiveDateColumn})"
+
+    println(
+      s"Ensuring Iceberg table exists: " +
+      config.targetTable
+    )
+
+    spark.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS
+         |${config.targetTable}
+         |USING iceberg
+         |PARTITIONED BY (
+         |  $partitionExpression
+         |)
+         |TBLPROPERTIES (
+         |  'format-version'='2',
+         |  'write.target-file-size-bytes'=
+         |  '${config.targetFileSizeBytes}'
+         |)
+         |AS
+         |SELECT *
+         |FROM ${config.sourceTable}
+         |WHERE 1 = 0
+         |""".stripMargin
+    )
+
+    if (
+      config.allowSchemaEvolution
+    ) {
+
+      spark.sql(
+        s"""
+           |ALTER TABLE ${config.targetTable}
+           |SET TBLPROPERTIES (
+           |  'write.spark.accept-any-schema'='true'
+           |)
+           |""".stripMargin
+      )
+    }
+  }
+
+
+  def append(
+      config: TableConfig,
+      data: DataFrame
+  ): Unit = {
+
+    println(
+      s"Appending data to ${config.targetTable}"
+    )
+
+    data
+      .writeTo(
+        config.targetTable
+      )
+      .option(
+        "target-file-size-bytes",
+        config.targetFileSizeBytes.toString
+      )
+      .option(
+        "mergeSchema",
+        config.allowSchemaEvolution.toString
+      )
+      .append()
+  }
+}
+
+10. archive/ArchiveValidator.scala
+This is the heart of idempotency.
+package com.company.archive.archive
+
+import com.company.archive.model._
+
+import org.apache.spark.sql.{DataFrame, SparkSession}
+
+class ArchiveValidator(
+    spark: SparkSession
+) {
+
+  def validate(
+      config: TableConfig,
+      sourceData: DataFrame,
+      selectedPartitions: Seq[HivePartition],
+      selectedDates: Seq[java.time.LocalDate]
+  ): Seq[ValidationResult] = {
+
+    val sourceCounts =
+      countByLeafPartition(
+        sourceData,
+        config
+      )
+
+    val targetCounts =
+      countTargetByLeafPartition(
+        config,
+        selectedDates
+      )
+
+    selectedDates.map { date =>
+
+      val expectedKeys =
+        selectedPartitions
+          .filter(
+            _.reportingDate == date
+          )
+          .map(
+            _.canonicalKey(
+              config.hivePartitionColumns
+            )
+          )
+          .toSet
+
+      val sourceForDate =
+        sourceCounts.filter {
+          case (key, _) =>
+            expectedKeys.contains(key)
+        }
+
+      val targetForDate =
+        targetCounts.filter {
+          case (key, _) =>
+            expectedKeys.contains(key)
+        }
+
+      val sourceRows =
+        sourceForDate.values.sum
+
+      val targetRows =
+        targetForDate.values.sum
+
+      val sourcePartitions =
+        sourceForDate.size
+
+      val targetPartitions =
+        targetForDate.size
+
+      val status =
+
+        if (
+          targetPartitions == 0
+        ) {
+          "PENDING"
+
+        } else if (
+          sourceForDate ==
+          targetForDate
+        ) {
+          "ALREADY_ARCHIVED"
+
+        } else {
+          "MISMATCH"
+        }
+
+      ValidationResult(
+        reportingDate =
+          date,
+
+        sourceRows =
+          sourceRows,
+
+        targetRows =
+          targetRows,
+
+        sourceLeafPartitions =
+          sourcePartitions,
+
+        targetLeafPartitions =
+          targetPartitions,
+
+        status =
+          status
+      )
+    }
+  }
+
+
+  private def countByLeafPartition(
+      data: DataFrame,
+      config: TableConfig
+  ): Map[String, Long] = {
+
+    if (data.isEmpty) {
+      return Map.empty
+    }
+
+    val result =
+      data
+        .groupBy(
+          config.hivePartitionColumns
+            .map(
+              data.col
+            ): _*
+        )
+        .count()
+        .collect()
+
+    result.map { row =>
+
+      val key =
+        config.hivePartitionColumns
+          .map { column =>
+
+            val value =
+              row.getAs[Any](
+                column
+              )
+
+            s"$column=${value}"
+          }
+          .mkString("/")
+
+      key ->
+        row.getAs[Long](
+          "count"
+        )
+
+    }.toMap
+  }
+
+
+  private def countTargetByLeafPartition(
+      config: TableConfig,
+      dates: Seq[java.time.LocalDate]
+  ): Map[String, Long] = {
+
+    if (dates.isEmpty) {
+      return Map.empty
+    }
+
+    val dateFilter =
+      dates
+        .map(
+          d => s"DATE '$d'"
+        )
+        .mkString(", ")
+
+    val groupBy =
+      config.hivePartitionColumns
+        .map(
+          c => s"`$c`"
+        )
+        .mkString(", ")
+
+    val result =
+      spark.sql(
+        s"""
+           |SELECT
+           |  $groupBy,
+           |  COUNT(*) AS row_count
+           |FROM ${config.targetTable}
+           |WHERE ${config.archiveDateColumn}
+                 IN ($dateFilter)
+           |GROUP BY $groupBy
+           |""".stripMargin
+      )
+        .collect()
+
+    result.map { row =>
+
+      val key =
+        config.hivePartitionColumns
+          .map { column =>
+
+            val value =
+              row.getAs[Any](
+                column
+              )
+
+            s"$column=$value"
+          }
+          .mkString("/")
+
+      key ->
+        row.getAs[Long](
+          "row_count"
+        )
+
+    }.toMap
+  }
+}
+
+11. audit/ManifestService.scala
+Keep the audit logic isolated.
+package com.company.archive.audit
+
+import com.company.archive.model._
+
+import org.apache.spark.sql.SparkSession
+
+import java.sql.Timestamp
+import java.time.Instant
+import java.util.UUID
+
+class ManifestService(
+    spark: SparkSession
+) {
+
+  def ensureTable(
+      config: TableConfig
+  ): Unit = {
+
+    spark.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS
+         |${config.manifestTable}
+         |(
+         |  source_table STRING,
+         |  target_table STRING,
+         |  reporting_date DATE,
+         |  source_leaf_partition_count BIGINT,
+         |  target_leaf_partition_count BIGINT,
+         |  source_row_count BIGINT,
+         |  target_row_count BIGINT,
+         |  status STRING,
+         |  batch_id STRING,
+         |  archived_at TIMESTAMP
+         |)
+         |USING iceberg
+         |""".stripMargin
+    )
+  }
+
+
+  def write(
+      config: TableConfig,
+      results: Seq[ValidationResult]
+  ): Unit = {
+
+    if (results.isEmpty) {
+      return
+    }
+
+    val batchId =
+      UUID.randomUUID().toString
+
+    val archivedAt =
+      Timestamp.from(
+        Instant.now()
+      )
+
+    val rows =
+      results.map { result =>
+
+        (
+          config.sourceTable,
+
+          config.targetTable,
+
+          java.sql.Date.valueOf(
+            result.reportingDate
+          ),
+
+          result.sourceLeafPartitions
+            .toLong,
+
+          result.targetLeafPartitions
+            .toLong,
+
+          result.sourceRows,
+
+          result.targetRows,
+
+          "SUCCESS",
+
+          batchId,
+
+          archivedAt
+        )
+      }
+
+    import spark.implicits._
+
+    spark
+      .createDataset(rows)
+      .toDF(
+        "source_table",
+        "target_table",
+        "reporting_date",
+        "source_leaf_partition_count",
+        "target_leaf_partition_count",
+        "source_row_count",
+        "target_row_count",
+        "status",
+        "batch_id",
+        "archived_at"
+      )
+      .writeTo(
+        config.manifestTable
+      )
+      .append()
+
+    println(
+      s"Manifest written. batchId=$batchId"
+    )
+  }
+}
+
+12. archive/ArchiveService.scala
+Now the orchestration becomes much easier to read.
+package com.company.archive.archive
+
+import com.company.archive.audit.ManifestService
+import com.company.archive.hive.HivePartitionService
+import com.company.archive.iceberg.IcebergTableService
+import com.company.archive.model._
+
+import org.apache.spark.sql.SparkSession
+
+import java.time.LocalDate
+
+class ArchiveService(
+    spark: SparkSession,
+    hiveService: HivePartitionService,
+    icebergService: IcebergTableService,
+    selector: PartitionSelector,
+    validator: ArchiveValidator,
+    manifestService: ManifestService
+) {
+
+  def process(
+      config: TableConfig
+  ): Unit = {
+
+    println()
+    println(
+      "=================================================="
+    )
+
+    println(
+      s"TABLE : ${config.name}"
+    )
+
+    println(
+      s"SOURCE: ${config.sourceTable}"
+    )
+
+    println(
+      s"TARGET: ${config.targetTable}"
+    )
+
+    println(
+      "=================================================="
+    )
+
+
+    // ----------------------------------------------------------
+    // 1. Create Iceberg target if required
+    // ----------------------------------------------------------
+
+    icebergService.ensureTargetTable(
+      config
+    )
+
+    manifestService.ensureTable(
+      config
+    )
+
+
+    // ----------------------------------------------------------
+    // 2. Read Hive partition metadata
+    // ----------------------------------------------------------
+
+    val hivePartitions =
+      hiveService.listPartitions(
+        config
+      )
+
+    println(
+      s"Hive leaf partition count = " +
+      hivePartitions.size
+    )
+
+
+    // ----------------------------------------------------------
+    // 3. Threshold
+    // ----------------------------------------------------------
+
+    if (
+      hivePartitions.size <=
+      config.maxHiveLeafPartitions
+    ) {
+
+      println(
+        "Threshold not reached. Nothing to archive."
+      )
+
+      return
+    }
+
+
+    // ----------------------------------------------------------
+    // 4. Select complete reporting_date groups
+    // ----------------------------------------------------------
+
+    val selectedPartitions =
+      selector.select(
+        hivePartitions,
+        config
+      )
+
+    if (
+      selectedPartitions.isEmpty
+    ) {
+
+      println(
+        "No eligible partitions."
+      )
+
+      return
+    }
+
+    val selectedDates =
+      selectedPartitions
+        .map(
+          _.reportingDate
+        )
+        .distinct
+        .sorted
+
+    println(
+      s"Selected reporting dates: " +
+      selectedDates.mkString(", ")
+    )
+
+    println(
+      s"Selected leaf partitions: " +
+      selectedPartitions.size
+    )
+
+
+    // ----------------------------------------------------------
+    // 5. Dry run
+    // ----------------------------------------------------------
+
+    if (
+      config.dryRun
+    ) {
+
+      println(
+        "DRY RUN enabled."
+      )
+
+      selectedPartitions.foreach(
+        p =>
+          println(
+            s"  ${p.rawSpec}"
+          )
+      )
+
+      return
+    }
+
+
+    // ----------------------------------------------------------
+    // 6. Read source data
+    // ----------------------------------------------------------
+
+    val sourceData =
+      readSourceData(
+        config,
+        selectedDates
+      ).cache()
+
+
+    // ----------------------------------------------------------
+    // 7. Check current target state
+    // ----------------------------------------------------------
+
+    val preValidation =
+      validator.validate(
+        config,
+        sourceData,
+        selectedPartitions,
+        selectedDates
+      )
+
+    printResults(
+      "PRE-VALIDATION",
+      preValidation
+    )
+
+
+    // ----------------------------------------------------------
+    // 8. Any mismatch = STOP
+    // ----------------------------------------------------------
+
+    if (
+      preValidation.exists(
+        _.status == "MISMATCH"
+      )
+    ) {
+
+      sourceData.unpersist()
+
+      throw new IllegalStateException(
+        s"Target mismatch detected for ${config.name}"
+      )
+    }
+
+
+    // ----------------------------------------------------------
+    // 9. Append only genuinely pending dates
+    // ----------------------------------------------------------
+
+    val pendingDates =
+      preValidation
+        .filter(
+          _.status == "PENDING"
+        )
+        .map(
+          _.reportingDate
+        )
+
+
+    if (
+      pendingDates.nonEmpty
+    ) {
+
+      val pendingData =
+        readSourceData(
+          config,
+          pendingDates
+        )
+
+      icebergService.append(
+        config,
+        pendingData
+      )
+
+    } else {
+
+      println(
+        "All selected dates are already present."
+      )
+    }
+
+
+    // ----------------------------------------------------------
+    // 10. Final validation
+    // ----------------------------------------------------------
+
+    val finalValidation =
+      validator.validate(
+        config,
+        sourceData,
+        selectedPartitions,
+        selectedDates
+      )
+
+    printResults(
+      "POST-WRITE VALIDATION",
+      finalValidation
+    )
+
+
+    val validationFailed =
+      finalValidation.exists { result =>
+
+        result.sourceRows !=
+        result.targetRows ||
+
+        result.sourceLeafPartitions !=
+        result.targetLeafPartitions
+      }
+
+
+    if (
+      validationFailed
+    ) {
+
+      sourceData.unpersist()
+
+      throw new IllegalStateException(
+        "Validation failed. " +
+        "Hive partitions will NOT be dropped."
+      )
+    }
+
+
+    // ----------------------------------------------------------
+    // 11. Drop Hive partitions
+    // ----------------------------------------------------------
+
+    if (
+      config.dropSourceAfterValidation
+    ) {
+
+      hiveService.dropPartitions(
+        config,
+        selectedPartitions
+      )
+
+    } else {
+
+      println(
+        "dropSourceAfterValidation=false."
+      )
+    }
+
+
+    // ----------------------------------------------------------
+    // 12. Audit
+    // ----------------------------------------------------------
+
+    manifestService.write(
+      config,
+      finalValidation
+    )
+
+
+    sourceData.unpersist()
+
+    println(
+      s"ARCHIVE COMPLETE: ${config.name}"
+    )
+  }
+
+
+  private def readSourceData(
+      config: TableConfig,
+      dates: Seq[LocalDate]
+  ) = {
+
+    val dateList =
+      dates
+        .map(
+          d => s"DATE '$d'"
+        )
+        .mkString(", ")
+
+    spark.sql(
+      s"""
+         |SELECT *
+         |FROM ${config.sourceTable}
+         |WHERE ${config.archiveDateColumn}
+               IN ($dateList)
+         |""".stripMargin
+    )
+  }
+
+
+  private def printResults(
+      title: String,
+      results: Seq[ValidationResult]
+  ): Unit = {
+
+    println()
+    println(
+      s"-------------- $title --------------"
+    )
+
+    results
+      .sortBy(
+        _.reportingDate
+      )
+      .foreach { result =>
+
+        println(
+          s"${result.reportingDate} | " +
+          s"sourcePartitions=${result.sourceLeafPartitions} | " +
+          s"targetPartitions=${result.targetLeafPartitions} | " +
+          s"sourceRows=${result.sourceRows} | " +
+          s"targetRows=${result.targetRows} | " +
+          s"status=${result.status}"
+        )
+      }
+
+    println(
+      "---------------------------------------------"
+    )
+  }
+}
+
+13. HiveToIcebergArchiveApp.scala
+package com.company.archive
+
+import com.company.archive.archive._
+import com.company.archive.audit.ManifestService
+import com.company.archive.config.ConfigLoader
+import com.company.archive.hive.HivePartitionService
+import com.company.archive.iceberg.IcebergTableService
+
+import org.apache.spark.sql.SparkSession
+
+object HiveToIcebergArchiveApp {
+
+  def main(
+      args: Array[String]
+  ): Unit = {
+
+    val configFile =
+      getConfigFile(
+        args
+      )
+
+    val spark =
+      SparkSession
+        .builder()
+        .appName(
+          "HiveToIcebergArchive"
+        )
+        .enableHiveSupport()
+        .getOrCreate()
+
+    try {
+
+      // --------------------------------------------------------
+      // Dependencies
+      // --------------------------------------------------------
+
+      val hiveService =
+        new HivePartitionService(
+          spark
+        )
+
+      val icebergService =
+        new IcebergTableService(
+          spark
+        )
+
+      val selector =
+        new PartitionSelector()
+
+      val validator =
+        new ArchiveValidator(
+          spark
+        )
+
+      val manifestService =
+        new ManifestService(
+          spark
+        )
+
+      val archiveService =
+        new ArchiveService(
+          spark,
+          hiveService,
+          icebergService,
+          selector,
+          validator,
+          manifestService
+        )
+
+
+      // --------------------------------------------------------
+      // Load configuration
+      // --------------------------------------------------------
+
+      val config =
+        ConfigLoader.load(
+          spark,
+          configFile
+        )
+
+      println(
+        s"Total configured tables: " +
+        config.tables.size
+      )
+
+
+      // --------------------------------------------------------
+      // Process every enabled table
+      // --------------------------------------------------------
+
+      var failures =
+        Seq.empty[String]
+
+      config.tables
+        .filter(_.enabled)
+        .foreach { tableConfig =>
+
+          try {
+
+            archiveService.process(
+              tableConfig
+            )
+
+          } catch {
+
+            case e: Exception =>
+
+              e.printStackTrace()
+
+              failures =
+                failures :+
+                s"${tableConfig.name}: " +
+                e.getMessage
+
+              if (
+                !config.execution
+                  .continueOnTableFailure
+              ) {
+
+                throw e
+              }
+          }
+        }
+
+
+      // --------------------------------------------------------
+      // Final result
+      // --------------------------------------------------------
+
+      if (
+        failures.nonEmpty
+      ) {
+
+        println(
+          "FAILED TABLES:"
+        )
+
+        failures.foreach(
+          println
+        )
+
+        throw new RuntimeException(
+          "One or more tables failed."
+        )
+
+      } else {
+
+        println(
+          "All enabled tables processed successfully."
+        )
+      }
+
+    } finally {
+
+      spark.stop()
+    }
+  }
+
+
+  private def getConfigFile(
+      args: Array[String]
+  ): String = {
+
+    args
+      .sliding(2)
+      .collectFirst {
+        case Array(
+            "--config",
+            fileName
+        ) =>
+          fileName
+      }
+      .getOrElse(
+        "archive_tables.json"
+      )
+  }
+}
+
+14. build.sbt
+Assuming your Cloudera environment is Spark 3.x / Scala 2.12:
+ThisBuild / scalaVersion := "2.12.15"
+
+lazy val root =
+  (project in file("."))
+    .settings(
+      name := "hive-iceberg-archiver",
+
+      version := "1.0.0",
+
+      libraryDependencies ++= Seq(
+        "org.apache.spark" %% "spark-core" % "3.5.6" % "provided",
+        "org.apache.spark" %% "spark-sql"  % "3.5.6" % "provided",
+        "org.apache.spark" %% "spark-hive" % "3.5.6" % "provided"
+      ),
+
+      Compile / run / fork := true,
+
+      assembly / mainClass :=
+        Some(
+          "com.company.archive.HiveToIcebergArchiveApp"
+        ),
+
+      assembly / assemblyJarName :=
+        "hive-iceberg-archiver.jar"
+    )
+Your Spark submission is:
+spark-submit \
+  --master yarn \
+  --deploy-mode cluster \
+  --files /opt/company/hive-iceberg-archiver/config/archive_tables.json#archive_tables.json \
+  --class com.company.archive.HiveToIcebergArchiveApp \
+  /opt/company/hive-iceberg-archiver/lib/hive-iceberg-archiver.jar \
+  --config archive_tables.json
+
